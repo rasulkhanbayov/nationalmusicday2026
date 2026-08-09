@@ -5,12 +5,11 @@ import { useState } from "react";
 import { Menu, X, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SITE } from "@/lib/constants";
 
 const navItems = [
-  { href: "/#about", label: "About" },
-  { href: "/#artists", label: "Artists" },
-  { href: "/#program", label: "Program" },
-  { href: "/#venue", label: "Venue" },
+  { href: "/", label: "Home" },
+  { href: "/events", label: "Events" },
 ];
 
 export function SiteHeader() {
@@ -22,12 +21,11 @@ export function SiteHeader() {
         <Link
           href="/"
           className="flex items-center gap-2 text-white"
-          aria-label="National Music Day 2026 home"
+          aria-label={`${SITE.name} home`}
         >
           <Music className="h-5 w-5 text-gold" />
           <span className="font-serif text-lg font-semibold tracking-tight">
-            National Music Day{" "}
-            <span className="text-gold">2026</span>
+            Common<span className="text-gold">tone</span>
           </span>
         </Link>
 
@@ -42,7 +40,7 @@ export function SiteHeader() {
             </Link>
           ))}
           <Button asChild variant="gold" size="sm">
-            <Link href="/seats">Buy Tickets</Link>
+            <Link href="/events">Browse Events</Link>
           </Button>
         </nav>
 
@@ -74,8 +72,8 @@ export function SiteHeader() {
             </Link>
           ))}
           <Button asChild variant="gold" size="sm" className="mt-2">
-            <Link href="/seats" onClick={() => setOpen(false)}>
-              Buy Tickets
+            <Link href="/events" onClick={() => setOpen(false)}>
+              Browse Events
             </Link>
           </Button>
         </nav>

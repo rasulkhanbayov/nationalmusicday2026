@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
         <div className="mb-6 flex items-center justify-center gap-2 text-white">
           <Music className="h-5 w-5 text-gold" />
           <span className="font-serif text-lg font-semibold">
-            National Music Day <span className="text-gold">2026</span>
+            Common<span className="text-gold">tone</span>
           </span>
         </div>
         <Suspense fallback={null}>

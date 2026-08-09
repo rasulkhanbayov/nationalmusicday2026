@@ -1,15 +1,14 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { ORDER_PREFIX } from "./constants";
 
 /** Tailwind-aware className combiner used by shadcn/ui components. */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Builds a padded order number like "NM2026-000123" from a numeric id. */
-export function formatOrderNumber(sequence: number): string {
-  return `${ORDER_PREFIX}-${String(sequence).padStart(6, "0")}`;
+/** Builds a padded order number like "NM2026-000123" from a prefix + sequence. */
+export function formatOrderNumber(prefix: string, sequence: number): string {
+  return `${prefix}-${String(sequence).padStart(6, "0")}`;
 }
 
 /** Builds a per-seat ticket id like "NM2026-000123-A5". */

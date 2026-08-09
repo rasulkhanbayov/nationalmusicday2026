@@ -7,8 +7,9 @@ import {
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { EVENT } from "./constants";
+import { SITE } from "./constants";
 import { generateQrDataUrl } from "./qrcode";
+import type { EventView } from "./events";
 
 export type TicketData = {
   ticketId: string;
@@ -112,22 +113,29 @@ const styles = StyleSheet.create({
 
 function TicketDocument({
   ticket,
+  event,
   qrDataUrl,
 }: {
   ticket: TicketData;
+  event: EventView;
   qrDataUrl: string;
 }) {
+  const timing = event.doorsTime
+    ? `Doors ${event.doorsTime} · Start ${event.startTime}`
+    : `Start ${event.startTime}`;
   return (
     <Document
       title={`Ticket ${ticket.ticketId}`}
-      author={EVENT.organizer}
-      subject={EVENT.name}
+      author={SITE.organizer}
+      subject={event.name}
     >
       <Page size="A5" orientation="landscape" style={styles.page}>
         <View style={styles.ticket}>
           <View style={styles.header}>
-            <Text style={styles.eventName}>{EVENT.name}</Text>
-            <Text style={styles.subtitle}>{EVENT.subtitle}</Text>
+            <Text style={styles.eventName}>{event.name}</Text>
+            {event.subtitle ? (
+              <Text style={styles.subtitle}>{event.subtitle}</Text>
+            ) : null}
           </View>
 
           <View style={styles.body}>
@@ -138,17 +146,17 @@ function TicketDocument({
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Date</Text>
-                <Text style={styles.value}>{EVENT.dateLong}</Text>
+                <Text style={styles.value}>{event.dateLong}</Text>
                 <Text style={{ fontSize: 9, color: "#7a869c", marginTop: 1 }}>
-                  Doors {EVENT.doorsTime} · Start {EVENT.startTime}
+                  {timing}
                 </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Venue</Text>
-                <Text style={styles.value}>{EVENT.venue.name}</Text>
+                <Text style={styles.value}>{event.venue.name}</Text>
                 <Text style={{ fontSize: 9, color: "#7a869c", marginTop: 1 }}>
-                  {EVENT.venue.street}, {EVENT.venue.postalCode}{" "}
-                  {EVENT.venue.city}
+                  {event.venue.street}, {event.venue.postalCode}{" "}
+                  {event.venue.city}
                 </Text>
               </View>
               <View style={styles.row}>
@@ -175,9 +183,12 @@ function TicketDocument({
 }
 
 /** Renders a single seat's ticket to a PDF Buffer. */
-export async function renderTicketPdf(ticket: TicketData): Promise<Buffer> {
+export async function renderTicketPdf(
+  ticket: TicketData,
+  event: EventView,
+): Promise<Buffer> {
   const qrDataUrl = await generateQrDataUrl(ticket.ticketId);
   return renderToBuffer(
-    <TicketDocument ticket={ticket} qrDataUrl={qrDataUrl} />,
+    <TicketDocument ticket={ticket} event={event} qrDataUrl={qrDataUrl} />,
   );
 }

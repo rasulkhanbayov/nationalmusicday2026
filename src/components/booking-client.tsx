@@ -12,8 +12,11 @@ import { MAX_SEATS_PER_ORDER } from "@/lib/constants";
 import { compareSeatLabels } from "@/lib/utils";
 
 type SeatsResponse = {
-  seats: SeatMapSeat[];
+  eventId: string;
+  slug: string;
+  isFree: boolean;
   priceCents: number;
+  seats: SeatMapSeat[];
   rows: string[];
   seatsPerRow: number;
 };
@@ -38,14 +41,15 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const seatsEndpoint = `/api/events/${initial.slug}/seats`;
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/seats", { cache: "no-store" });
+      const res = await fetch(seatsEndpoint, { cache: "no-store" });
       if (res.ok) {
         const fresh: SeatsResponse = await res.json();
         setData(fresh);
-        // Drop any selected seats that became unavailable meanwhile.
         setSelected((prev) => {
           const stillOk = new Set<string>();
           const avail = new Map(fresh.seats.map((s) => [s.label, s.status]));
@@ -58,7 +62,7 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [seatsEndpoint]);
 
   // Refresh seat availability periodically so two buyers see live state.
   useEffect(() => {
@@ -94,6 +98,7 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
     [selected],
   );
   const totalCents = selected.size * data.priceCents;
+  const isFree = data.isFree;
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
@@ -112,6 +117,7 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          eventId: data.eventId,
           ...form,
           seats: selectedList,
         }),
@@ -121,14 +127,14 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
       if (!res.ok) {
         toast({
           variant: "destructive",
-          title: "Checkout failed",
+          title: isFree ? "Reservation failed" : "Checkout failed",
           description: json.error ?? "Please try again.",
         });
         if (res.status === 409) await refresh();
         return;
       }
 
-      // Redirect to Stripe Checkout.
+      // Paid → Stripe URL; Free → success page URL. Both come back as `url`.
       window.location.href = json.url;
     } catch {
       toast({
@@ -147,6 +153,10 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
     form.lastName.trim() &&
     /\S+@\S+\.\S+/.test(form.email) &&
     !submitting;
+
+  const ctaText = isFree
+    ? `Reserve ${selected.size || ""} ${selected.size === 1 ? "seat" : "seats"}`.trim()
+    : `Pay ${formatEuros(totalCents)}`;
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
@@ -188,11 +198,10 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
                 Your Order
               </h3>
               <span className="text-sm text-muted-foreground">
-                {formatEuros(data.priceCents)} / seat
+                {isFree ? "Free entry" : `${formatEuros(data.priceCents)} / seat`}
               </span>
             </div>
 
-            {/* Selected seats */}
             {selectedList.length === 0 ? (
               <p className="rounded-lg bg-secondary px-4 py-6 text-center text-sm text-muted-foreground">
                 No seats selected yet. Click an available seat on the map.
@@ -220,7 +229,7 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
                 {selected.size} {selected.size === 1 ? "ticket" : "tickets"}
               </span>
               <span className="font-serif text-2xl font-bold text-navy-900">
-                {formatEuros(totalCents)}
+                {isFree ? "Free" : formatEuros(totalCents)}
               </span>
             </div>
 
@@ -299,17 +308,19 @@ export function BookingClient({ initial }: { initial: SeatsResponse }) {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="animate-spin" /> Redirecting…
+                    <Loader2 className="animate-spin" />{" "}
+                    {isFree ? "Reserving…" : "Redirecting…"}
                   </>
                 ) : (
                   <>
-                    <Ticket /> Pay {formatEuros(totalCents)}{" "}
-                    <ArrowRight />
+                    <Ticket /> {ctaText} <ArrowRight />
                   </>
                 )}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                Secure payment via Stripe. Seats are held for 30 minutes.
+                {isFree
+                  ? "Free reservation · Seats are held for 30 minutes."
+                  : "Secure payment via Stripe. Seats are held for 30 minutes."}
               </p>
             </form>
           </CardContent>

@@ -1,21 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkoutSchema } from "@/lib/schemas";
 import { reserveSeats, SeatUnavailableError } from "@/lib/seats";
-import { createPendingOrder, cancelOrder } from "@/lib/orders";
-import { getTicketPriceCents, formatEuros } from "@/lib/config";
+import {
+  createPendingOrder,
+  cancelOrder,
+  createFreeReservation,
+} from "@/lib/orders";
+import { getEventById } from "@/lib/events";
+import { formatEuros } from "@/lib/config";
 import { stripe } from "@/lib/stripe";
-import { EVENT, RESERVATION_MINUTES, siteUrl } from "@/lib/constants";
+import { RESERVATION_MINUTES, siteUrl } from "@/lib/constants";
 import { compareSeatLabels } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
+import { EventStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/checkout — validates guest details + seats, holds the seats,
-// creates a PENDING order, and returns a Stripe Checkout URL.
+// Tickets are currently sold on an external site (see Event.ticketUrl), so the
+// built-in checkout is switched off. The implementation below is kept intact —
+// flip this to true (along with the matching flag in
+// src/app/events/[slug]/seats/page.tsx) to sell on this site again.
+const BUILT_IN_CHECKOUT_ENABLED = false;
+
+// POST /api/checkout — validates guest details + seats for an event.
+// Free events: reserve + confirm immediately (no Stripe), return success URL.
+// Paid events: reserve, create PENDING order, return a Stripe Checkout URL.
 export async function POST(req: NextRequest) {
+  if (!BUILT_IN_CHECKOUT_ENABLED) {
+    return NextResponse.json(
+      { error: "Tickets for this event are sold on our ticketing partner's site." },
+      { status: 410 },
+    );
+  }
+
   let parsed;
   try {
-    const body = await req.json();
-    parsed = checkoutSchema.parse(body);
+    parsed = checkoutSchema.parse(await req.json());
   } catch (err) {
     const message =
       err && typeof err === "object" && "errors" in err
@@ -26,24 +46,70 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const seatLabels = [...parsed.seats].sort(compareSeatLabels);
-  const unitPriceCents = await getTicketPriceCents();
+  const event = await getEventById(parsed.eventId);
+  if (!event || event.status === EventStatus.DRAFT) {
+    return NextResponse.json({ error: "Event not available" }, { status: 404 });
+  }
+  if (event.status === EventStatus.PAST) {
+    return NextResponse.json(
+      { error: "This event has already taken place." },
+      { status: 409 },
+    );
+  }
 
-  // 1. Create the pending order (gets an order number).
+  const seatLabels = [...parsed.seats].sort(compareSeatLabels);
+  const base = siteUrl();
+
+  // ── Free event: reserve + confirm directly, no payment. ──
+  if (event.isFree) {
+    try {
+      const { orderNumber } = await createFreeReservation({
+        eventId: event.id,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        email: parsed.email,
+        phone: parsed.phone || null,
+        seatLabels,
+      });
+      return NextResponse.json({
+        free: true,
+        orderNumber,
+        url: `${base}/success?order=${encodeURIComponent(orderNumber)}`,
+        total: "Free",
+      });
+    } catch (err) {
+      if (err instanceof SeatUnavailableError) {
+        return NextResponse.json(
+          {
+            error: `Sorry, these seats are no longer available: ${err.unavailable.join(", ")}. Please pick different seats.`,
+            unavailable: err.unavailable,
+          },
+          { status: 409 },
+        );
+      }
+      console.error("[checkout] free reservation error:", err);
+      return NextResponse.json(
+        { error: "Could not complete your reservation. Please try again." },
+        { status: 500 },
+      );
+    }
+  }
+
+  // ── Paid event: reserve, then create a Stripe Checkout session. ──
   const order = await createPendingOrder({
+    eventId: event.id,
     firstName: parsed.firstName,
     lastName: parsed.lastName,
     email: parsed.email,
     phone: parsed.phone || null,
     seatLabels,
-    unitPriceCents,
+    unitPriceCents: event.priceCents,
+    isFree: false,
   });
 
-  // 2. Atomically hold the seats for this order.
   try {
-    await reserveSeats(seatLabels, order.id);
+    await reserveSeats(event.id, seatLabels, order.id);
   } catch (err) {
-    // Roll back the order so we don't leak abandoned PENDING rows.
     await cancelOrder(order.id).catch(() => {});
     if (err instanceof SeatUnavailableError) {
       return NextResponse.json(
@@ -60,25 +126,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3. Create the Stripe Checkout Session.
-  const base = siteUrl();
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       customer_email: parsed.email,
       locale: "auto",
-      // Expire the Stripe session in sync with our seat hold.
       expires_at: Math.floor(Date.now() / 1000) + RESERVATION_MINUTES * 60,
       line_items: [
         {
           quantity: seatLabels.length,
           price_data: {
-            currency: "eur",
-            unit_amount: unitPriceCents,
+            currency: event.currency,
+            unit_amount: event.priceCents,
             product_data: {
-              name: `${EVENT.name} — Concert Ticket`,
-              description: `Seats: ${seatLabels.join(", ")} · ${EVENT.dateLong}`,
+              name: `${event.name} — Ticket`,
+              description: `Seats: ${seatLabels.join(", ")} · ${event.dateLong}`,
             },
           },
         },
@@ -86,14 +149,13 @@ export async function POST(req: NextRequest) {
       metadata: {
         orderId: order.id,
         orderNumber: order.orderNumber,
+        eventId: event.id,
         seats: seatLabels.join(","),
       },
       success_url: `${base}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/seats?cancelled=1&order=${order.orderNumber}`,
+      cancel_url: `${base}/events/${event.slug}/seats?cancelled=1`,
     });
 
-    // Persist the session id for webhook reconciliation.
-    const { prisma } = await import("@/lib/prisma");
     await prisma.order.update({
       where: { id: order.id },
       data: { stripeSessionId: session.id },
@@ -102,7 +164,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       url: session.url,
       orderNumber: order.orderNumber,
-      total: formatEuros(unitPriceCents * seatLabels.length),
+      total: formatEuros(event.priceCents * seatLabels.length),
     });
   } catch (err) {
     console.error("[checkout] Stripe session error:", err);

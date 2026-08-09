@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
 import { sendConfirmationEmail } from "@/lib/email";
+import { toEventView } from "@/lib/events";
 import { buildTicketId, compareSeatLabels } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +24,12 @@ export async function POST(req: NextRequest) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { seats: true },
+    include: { seats: true, event: true },
   });
 
   if (!order || order.status !== OrderStatus.PAID) {
     return NextResponse.json(
-      { error: "Paid order not found" },
+      { error: "Confirmed order not found" },
       { status: 404 },
     );
   }
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
       orderNumber: order.orderNumber,
       seatLabels: seats.map((s) => s.label),
       totalCents: order.totalCents,
+      isFree: order.isFree,
+      event: toEventView(order.event),
       tickets: seats.map((s) => ({
         ticketId: buildTicketId(order.orderNumber, s.label),
         orderNumber: order.orderNumber,

@@ -1,8 +1,8 @@
 {
-  "name": "national-music-day-2026",
+  "name": "commontone",
   "version": "1.0.0",
   "private": true,
-  "description": "Ticketing website for National Music Day 2026 — Celebrating Azerbaijan's National Music Day",
+  "description": "Ticketing platform for Commontone — cultural concerts across Germany",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

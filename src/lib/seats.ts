@@ -1,9 +1,6 @@
 import { prisma } from "./prisma";
 import { Prisma, SeatStatus } from "@prisma/client";
-import {
-  RESERVATION_MINUTES,
-  MAX_SEATS_PER_ORDER,
-} from "./constants";
+import { RESERVATION_MINUTES, MAX_SEATS_PER_ORDER } from "./constants";
 import { compareSeatLabels } from "./utils";
 
 export type SeatView = {
@@ -16,12 +13,13 @@ export type SeatView = {
 };
 
 /**
- * Returns the public seat map. Expired reservations are surfaced as
- * AVAILABLE so the client doesn't block seats that are effectively free.
+ * Returns the public seat map for one event. Expired reservations are surfaced
+ * as AVAILABLE so the client doesn't block seats that are effectively free.
  */
-export async function getSeatMap(): Promise<SeatView[]> {
+export async function getSeatMap(eventId: string): Promise<SeatView[]> {
   const now = new Date();
   const seats = await prisma.seat.findMany({
+    where: { eventId },
     orderBy: [{ row: "asc" }, { number: "asc" }],
   });
 
@@ -47,14 +45,13 @@ export class SeatUnavailableError extends Error {
 }
 
 /**
- * Atomically reserves the requested seats for an order. Throws
- * SeatUnavailableError if any requested seat is sold or actively held by a
- * different order. Reusable for the same order (idempotent extend).
- *
- * Runs in a serializable transaction to prevent two buyers grabbing the
- * same seat concurrently.
+ * Atomically reserves the requested seats (within one event) for an order.
+ * Throws SeatUnavailableError if any requested seat is sold or actively held
+ * by a different order. Runs in a serializable transaction to prevent two
+ * buyers grabbing the same seat concurrently.
  */
 export async function reserveSeats(
+  eventId: string,
   seatLabels: string[],
   orderId: string,
 ): Promise<void> {
@@ -71,7 +68,7 @@ export async function reserveSeats(
   await prisma.$transaction(
     async (tx) => {
       const seats = await tx.seat.findMany({
-        where: { label: { in: seatLabels } },
+        where: { eventId, label: { in: seatLabels } },
       });
 
       if (seats.length !== seatLabels.length) {
@@ -95,7 +92,7 @@ export async function reserveSeats(
       }
 
       await tx.seat.updateMany({
-        where: { label: { in: seatLabels } },
+        where: { eventId, label: { in: seatLabels } },
         data: {
           status: SeatStatus.RESERVED,
           reservedUntil,

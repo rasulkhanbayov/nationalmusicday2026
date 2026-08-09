@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, ScanLine, LogOut, Music } from "lucide-react";
+import { LayoutDashboard, ScanLine, LogOut, Music, CalendarCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/events", label: "Events", icon: CalendarCog },
   { href: "/admin/scan", label: "Scan Tickets", icon: ScanLine },
 ];
 
@@ -23,7 +24,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <Link href="/admin/dashboard" className="flex items-center gap-2">
               <Music className="h-5 w-5 text-gold" />
               <span className="font-serif font-semibold">
-                NMD 2026 <span className="text-white/50">Admin</span>
+                Commontone <span className="text-white/50">Admin</span>
               </span>
             </Link>
             <nav className="hidden items-center gap-1 sm:flex">

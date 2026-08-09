@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
-import { EVENT } from "@/lib/constants";
+import { SITE } from "@/lib/constants";
 
 export const runtime = "edge";
-export const alt = `${EVENT.name} — ${EVENT.subtitle}`;
+export const alt = `${SITE.name} — ${SITE.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -35,20 +35,10 @@ export default function OgImage() {
             marginBottom: 24,
           }}
         >
-          {EVENT.dateLong} · {EVENT.venue.city}
+          {SITE.tagline}
         </div>
         <div style={{ fontSize: 84, fontWeight: 700, lineHeight: 1.05 }}>
-          National Music Day{" "}
-          <span style={{ color: "#c9a14a" }}>2026</span>
-        </div>
-        <div
-          style={{
-            fontSize: 34,
-            color: "rgba(255,255,255,0.78)",
-            marginTop: 28,
-          }}
-        >
-          {EVENT.subtitle}
+          Common<span style={{ color: "#c9a14a" }}>tone</span>
         </div>
         <div
           style={{
@@ -57,7 +47,7 @@ export default function OgImage() {
             color: "rgba(255,255,255,0.55)",
           }}
         >
-          {EVENT.venue.name} · {EVENT.type}
+          Concerts & Recitals · Munich, Germany
         </div>
       </div>
     ),

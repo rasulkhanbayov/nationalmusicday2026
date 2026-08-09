@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { SITE } from "./constants";
 
 // Lazily instantiate the Stripe client so importing this module (e.g. during
 // Next.js build-time page-data collection) doesn't throw when the secret key
@@ -15,7 +16,7 @@ function getStripe(): Stripe {
   }
   _stripe = new Stripe(key, {
     apiVersion: "2025-02-24.acacia",
-    appInfo: { name: "National Music Day 2026" },
+    appInfo: { name: SITE.name },
     typescript: true,
   });
   return _stripe;

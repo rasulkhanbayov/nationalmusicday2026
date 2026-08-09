@@ -1,4 +1,4 @@
-// Prisma schema for National Music Day 2026 ticketing
+// Prisma schema for the multi-event ticketing platform.
 // Datasource: PostgreSQL
 
 generator client {
@@ -11,7 +11,83 @@ datasource db {
 }
 
 // ──────────────────────────────────────────────
-// Seats — the 120-seat hall (12 rows × 10 seats)
+// Event — one row per concert/show. Everything else
+// (seats, orders, tickets) belongs to an Event.
+// ──────────────────────────────────────────────
+enum EventStatus {
+  DRAFT // not visible to the public
+  PUBLISHED // visible, on sale
+  SOLD_OUT // visible, no seats left
+  PAST // archived / finished
+}
+
+model Event {
+  id       String      @id @default(cuid())
+  slug     String      @unique // URL segment, e.g. "national-music-day-2026"
+  status   EventStatus @default(DRAFT)
+
+  // Display / detail content
+  name        String
+  subtitle    String?
+  type        String  @default("Concert") // e.g. "Classical Music Concert"
+  description String? // long-form intro paragraph(s)
+
+  // Schedule
+  startsAt  DateTime // event start (used for date display + schema)
+  endsAt    DateTime? // optional end time
+  doorsTime String? // free-text, e.g. "18:30"
+
+  // Venue (denormalized per event)
+  venueName       String
+  venueStreet     String
+  venuePostalCode String
+  venueCity       String
+  venueCountry    String @default("Germany")
+  venueCountryCode String @default("DE")
+
+  // External ticketing. Tickets are currently sold on a third-party site, so
+  // the public CTA links out here instead of using the built-in checkout.
+  // When null, the event shows "Tickets coming soon" rather than a dead link.
+  ticketUrl String?
+
+  // Pricing mode. Retained for display (and for the dormant built-in checkout).
+  isFree     Boolean @default(false)
+  priceCents Int     @default(0) // unit price in euro cents (paid events)
+  currency   String  @default("eur")
+
+  // Seat layout for this event. Seats are generated from rows × seatsPerRow.
+  rows        Int @default(12) // number of rows (A, B, …)
+  seatsPerRow Int @default(10)
+
+  // Per-event order number prefix, e.g. "NM2026" → NM2026-000123.
+  orderPrefix String @default("EV")
+  // Monotonic counter for this event's order numbers.
+  orderSeq    Int    @default(0)
+
+  // Hero/card artwork for this event (path under /public, or an absolute URL).
+  imageUrl String?
+
+  // Editorial JSON blobs (artists, program, ticket tiers) — kept flexible.
+  artistsJson String? // JSON: [{ name, role, bio }]
+  programJson String? // JSON: [{ part, pieces: [{ composer, title }] }]
+  // JSON: [{ name, priceCents, note }] — shown when an event sells several
+  // ticket types. priceCents above stays the entry-level price.
+  tiersJson String?
+
+  contactEmail String?
+
+  seats   Seat[]
+  orders  Order[]
+  tickets Ticket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ──────────────────────────────────────────────
+// Seats — belong to an Event.
 // ──────────────────────────────────────────────
 enum SeatStatus {
   AVAILABLE
@@ -20,16 +96,17 @@ enum SeatStatus {
 }
 
 model Seat {
-  id        String     @id @default(cuid())
-  // Human label, e.g. "A5". Unique across the hall.
-  label     String     @unique
-  row       String // "A" .. "L"
-  number    Int // 1 .. 10
-  status    SeatStatus @default(AVAILABLE)
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  // When RESERVED, this is the order currently holding the seat and
-  // the time the hold expires. A hold past `reservedUntil` is treated
-  // as free again (enforced in application logic).
+  // Human label, e.g. "A5". Unique per event.
+  label  String
+  row    String // "A" ..
+  number Int // 1 ..
+  status SeatStatus @default(AVAILABLE)
+
+  // When RESERVED, the order holding the seat and when the hold expires.
   reservedUntil DateTime?
   orderId       String?
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
@@ -39,24 +116,29 @@ model Seat {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
+  @@unique([eventId, label])
+  @@index([eventId, status])
   @@index([orderId])
 }
 
 // ──────────────────────────────────────────────
-// Orders — one guest checkout = one order
+// Orders — one guest checkout = one order, for one event.
 // ──────────────────────────────────────────────
 enum OrderStatus {
-  PENDING // created, awaiting payment
-  PAID // payment succeeded
+  PENDING // created, awaiting payment (paid events only)
+  PAID // payment succeeded OR free reservation confirmed
   CANCELLED // payment cancelled / expired
 }
 
 model Order {
   id          String      @id @default(cuid())
-  // Human-friendly reference, e.g. "NM2026-000123"
+  eventId     String
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   orderNumber String      @unique
   status      OrderStatus @default(PENDING)
+
+  // True when this order is a free reservation (no payment).
+  isFree Boolean @default(false)
 
   // Guest contact details (no account required)
   firstName String
@@ -64,8 +146,7 @@ model Order {
   email     String
   phone     String?
 
-  // Pricing is captured at purchase time so later price changes don't
-  // rewrite history. Amounts are in euro cents.
+  // Pricing captured at purchase time. For free orders these are 0.
   unitPriceCents Int
   quantity       Int
   totalCents     Int
@@ -81,17 +162,21 @@ model Order {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([eventId])
   @@index([email])
   @@index([status])
 }
 
 // ──────────────────────────────────────────────
-// Tickets — one per seat purchased
+// Tickets — one per seat purchased/reserved.
 // ──────────────────────────────────────────────
 model Ticket {
   id String @id @default(cuid())
-  // Public ticket id encoded in the QR code, e.g. "NM2026-000123-A5"
+  // Public ticket id encoded in the QR, e.g. "NM2026-000123-A5"
   ticketId String @unique
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -99,19 +184,19 @@ model Ticket {
   seatId String @unique
   seat   Seat   @relation(fields: [seatId], references: [id])
 
-  // Check-in tracking for the door scanner
+  // Check-in tracking for the door scanner.
   checkedIn   Boolean   @default(false)
   checkedInAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([eventId])
   @@index([orderId])
 }
 
 // ──────────────────────────────────────────────
-// AppConfig — admin-editable key/value settings
-// (e.g. TICKET_PRICE_CENTS)
+// AppConfig — global key/value settings (not per-event).
 // ──────────────────────────────────────────────
 model AppConfig {
   key       String   @id

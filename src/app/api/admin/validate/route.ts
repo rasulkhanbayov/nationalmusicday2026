@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const result = await validateTicket(parsed.ticketId, parsed.checkIn);
+  const result = await validateTicket(
+    parsed.ticketId,
+    parsed.checkIn,
+    parsed.eventId ?? undefined,
+  );
   return NextResponse.json(result);
 }

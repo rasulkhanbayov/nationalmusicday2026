@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import { OrderStatus, SeatStatus } from "@prisma/client";
-import { HALL } from "./constants";
 
 export type DashboardStats = {
   totalSeats: number;
@@ -11,21 +10,33 @@ export type DashboardStats = {
   paidOrders: number;
 };
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const [sold, paidAgg, checkedIn, paidOrders] = await Promise.all([
-    prisma.seat.count({ where: { status: SeatStatus.SOLD } }),
-    prisma.order.aggregate({
-      where: { status: OrderStatus.PAID },
-      _sum: { totalCents: true },
-    }),
-    prisma.ticket.count({ where: { checkedIn: true } }),
-    prisma.order.count({ where: { status: OrderStatus.PAID } }),
+/**
+ * Dashboard stats. Scoped to one event when `eventId` is given, otherwise
+ * aggregated across all events.
+ */
+export async function getDashboardStats(
+  eventId?: string,
+): Promise<DashboardStats> {
+  const seatWhere = eventId ? { eventId } : {};
+  const orderWhere = eventId
+    ? { eventId, status: OrderStatus.PAID }
+    : { status: OrderStatus.PAID };
+  const ticketWhere = eventId
+    ? { eventId, checkedIn: true }
+    : { checkedIn: true };
+
+  const [total, sold, paidAgg, checkedIn, paidOrders] = await Promise.all([
+    prisma.seat.count({ where: seatWhere }),
+    prisma.seat.count({ where: { ...seatWhere, status: SeatStatus.SOLD } }),
+    prisma.order.aggregate({ where: orderWhere, _sum: { totalCents: true } }),
+    prisma.ticket.count({ where: ticketWhere }),
+    prisma.order.count({ where: orderWhere }),
   ]);
 
   return {
-    totalSeats: HALL.totalSeats,
+    totalSeats: total,
     ticketsSold: sold,
-    ticketsRemaining: HALL.totalSeats - sold,
+    ticketsRemaining: total - sold,
     revenueCents: paidAgg._sum.totalCents ?? 0,
     checkedIn,
     paidOrders,

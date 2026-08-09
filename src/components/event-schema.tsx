@@ -1,41 +1,41 @@
-import { EVENT, siteUrl } from "@/lib/constants";
+import { SITE, siteUrl } from "@/lib/constants";
+import type { EventView } from "@/lib/events";
 
-/**
- * Injects schema.org MusicEvent structured data for rich search results.
- * `priceEuros` is the current ticket price.
- */
-export function EventSchema({ priceEuros }: { priceEuros: number }) {
+/** Injects schema.org MusicEvent structured data for one event. */
+export function EventSchema({ event }: { event: EventView }) {
   const url = siteUrl();
+  const eventUrl = `${url}/events/${event.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "MusicEvent",
-    name: EVENT.name,
-    description: EVENT.subtitle,
-    startDate: EVENT.startTimeISO,
-    endDate: EVENT.endTimeISO,
+    name: event.name,
+    description: event.subtitle || event.description || event.name,
+    startDate: event.startTimeISO,
+    endDate: event.endTimeISO || undefined,
     eventStatus: "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     image: [`${url}/og-image.png`],
+    url: eventUrl,
     location: {
       "@type": "Place",
-      name: EVENT.venue.name,
+      name: event.venue.name,
       address: {
         "@type": "PostalAddress",
-        streetAddress: EVENT.venue.street,
-        postalCode: EVENT.venue.postalCode,
-        addressLocality: EVENT.venue.city,
-        addressCountry: EVENT.venue.countryCode,
+        streetAddress: event.venue.street,
+        postalCode: event.venue.postalCode,
+        addressLocality: event.venue.city,
+        addressCountry: event.venue.countryCode,
       },
     },
     organizer: {
       "@type": "Organization",
-      name: EVENT.organizer,
+      name: SITE.organizer,
       url,
     },
     offers: {
       "@type": "Offer",
-      url: `${url}/seats`,
-      price: priceEuros.toFixed(2),
+      url: `${eventUrl}/seats`,
+      price: event.isFree ? "0" : (event.priceCents / 100).toFixed(2),
       priceCurrency: "EUR",
       availability: "https://schema.org/InStock",
       validFrom: new Date().toISOString(),

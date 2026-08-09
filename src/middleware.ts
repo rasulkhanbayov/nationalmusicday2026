@@ -4,5 +4,9 @@ export { default } from "next-auth/middleware";
 // next-auth's middleware redirects unauthenticated users to the configured
 // signIn page (/admin/login).
 export const config = {
-  matcher: ["/admin/dashboard/:path*", "/admin/scan/:path*"],
+  matcher: [
+    "/admin/dashboard/:path*",
+    "/admin/events/:path*",
+    "/admin/scan/:path*",
+  ],
 };

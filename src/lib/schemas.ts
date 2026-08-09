@@ -1,22 +1,22 @@
 import { z } from "zod";
 import { MAX_SEATS_PER_ORDER } from "./constants";
 
-const seatLabelRegex = /^[A-L]([1-9]|10)$/;
+// Generalized seat label: one uppercase letter (row, A–Z) + 1–2 digit number.
+// Per-event validity is still enforced against the DB at reserve time.
+const seatLabelRegex = /^[A-Z]\d{1,2}$/;
+
+const seatsField = z
+  .array(z.string().regex(seatLabelRegex, "Invalid seat"))
+  .min(1, "Select at least one seat")
+  .max(MAX_SEATS_PER_ORDER, `At most ${MAX_SEATS_PER_ORDER} seats`);
 
 export const checkoutSchema = z.object({
+  eventId: z.string().min(1, "Missing event"),
   firstName: z.string().trim().min(1, "First name is required").max(80),
   lastName: z.string().trim().min(1, "Last name is required").max(80),
   email: z.string().trim().email("A valid email is required").max(160),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .optional()
-    .or(z.literal("")),
-  seats: z
-    .array(z.string().regex(seatLabelRegex, "Invalid seat"))
-    .min(1, "Select at least one seat")
-    .max(MAX_SEATS_PER_ORDER, `At most ${MAX_SEATS_PER_ORDER} seats`),
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  seats: seatsField,
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -24,9 +24,55 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export const validateSchema = z.object({
   ticketId: z.string().trim().min(1),
   checkIn: z.boolean().optional().default(true),
+  // Optional: scope the scan to a specific event's door.
+  eventId: z.string().optional().nullable(),
 });
 
-export const priceUpdateSchema = z.object({
-  // Accept euros as a number (e.g. 25 or 25.5) from the admin form.
-  euros: z.number().positive().max(100000),
+// Admin: create / edit an event.
+export const eventSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers and dashes only"),
+  status: z.enum(["DRAFT", "PUBLISHED", "SOLD_OUT", "PAST"]),
+  name: z.string().trim().min(1).max(140),
+  subtitle: z.string().trim().max(200).optional().or(z.literal("")),
+  type: z.string().trim().max(80).optional().or(z.literal("")),
+  description: z.string().trim().max(4000).optional().or(z.literal("")),
+  // ISO datetime-local string from the form.
+  startsAt: z.string().min(1, "Start date/time is required"),
+  endsAt: z.string().optional().or(z.literal("")),
+  doorsTime: z.string().trim().max(20).optional().or(z.literal("")),
+  venueName: z.string().trim().min(1).max(140),
+  venueStreet: z.string().trim().min(1).max(140),
+  venuePostalCode: z.string().trim().min(1).max(20),
+  venueCity: z.string().trim().min(1).max(80),
+  venueCountry: z.string().trim().max(80).optional().or(z.literal("")),
+  // External ticket-shop link. Empty means "not on sale yet".
+  ticketUrl: z
+    .string()
+    .trim()
+    .url("Must be a full URL, e.g. https://…")
+    .max(500)
+    .optional()
+    .or(z.literal("")),
+  // Hero/card artwork: a path under /public (e.g. "/images/foo.jpeg") or a
+  // full URL. Empty falls back to the plain navy gradient.
+  imageUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  isFree: z.boolean(),
+  // Euros as a number from the form; ignored when isFree.
+  priceEuros: z.number().min(0).max(100000),
+  rows: z.number().int().min(1).max(26),
+  seatsPerRow: z.number().int().min(1).max(40),
+  orderPrefix: z
+    .string()
+    .trim()
+    .min(1)
+    .max(12)
+    .regex(/^[A-Za-z0-9]+$/, "Letters and numbers only"),
+  contactEmail: z.string().trim().email().optional().or(z.literal("")),
 });
+
+export type EventInput = z.infer<typeof eventSchema>;

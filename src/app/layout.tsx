@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { EVENT, siteUrl } from "@/lib/constants";
+import { SITE, siteUrl } from "@/lib/constants";
 
 const serif = Cormorant_Garamond({
   subsets: ["latin"],
@@ -18,42 +18,43 @@ const sans = Inter({
 });
 
 const url = siteUrl();
-const description = `${EVENT.subtitle}. A classical music concert on ${EVENT.dateLong} at ${EVENT.venue.name}, ${EVENT.venue.city}. Reserve your seat — only ${EVENT.capacity} available.`;
+const title = `${SITE.name} — ${SITE.tagline}`;
+const description = `${SITE.tagline}. Browse upcoming concerts and recitals and reserve your seats online.`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(url),
   title: {
-    default: `${EVENT.name} — ${EVENT.subtitle}`,
-    template: `%s · ${EVENT.name}`,
+    default: title,
+    template: `%s · ${SITE.name}`,
   },
   description,
   keywords: [
-    "Azerbaijani music",
-    "National Music Day",
+    "Commontone",
+    "cultural concerts Germany",
     "classical concert Munich",
-    "Einstein Kultur",
-    "Azerbaijan culture Germany",
+    "concert tickets Germany",
+    "Azerbaijani music",
   ],
-  authors: [{ name: EVENT.organizer }],
+  authors: [{ name: SITE.organizer }],
   openGraph: {
     type: "website",
     locale: "en_US",
     url,
-    siteName: EVENT.name,
-    title: `${EVENT.name} — ${EVENT.subtitle}`,
+    siteName: SITE.name,
+    title,
     description,
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: EVENT.name,
+        alt: SITE.name,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${EVENT.name} — ${EVENT.subtitle}`,
+    title,
     description,
     images: ["/og-image.png"],
   },

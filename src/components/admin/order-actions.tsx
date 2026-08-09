@@ -45,10 +45,13 @@ export function ResendButton({ orderId }: { orderId: string }) {
   );
 }
 
-export function ExportButton() {
+export function ExportButton({ eventId }: { eventId?: string }) {
+  const href = eventId
+    ? `/api/admin/export?eventId=${encodeURIComponent(eventId)}`
+    : "/api/admin/export";
   return (
     <Button asChild variant="outline" size="sm">
-      <a href="/api/admin/export" download>
+      <a href={href} download>
         Export CSV
       </a>
     </Button>
