@@ -17,14 +17,16 @@ import { cn } from "@/lib/utils";
 type Result =
   | {
       status: "VALID";
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
     }
   | {
       status: "ALREADY_USED";
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
@@ -32,7 +34,8 @@ type Result =
     }
   | {
       status: "WRONG_EVENT";
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
@@ -246,6 +249,7 @@ function ResultView({
         <Details
           name={result.purchaserName}
           seat={result.seatLabel}
+          tier={result.tierName}
           order={result.orderNumber}
           event={result.eventName}
         />
@@ -269,6 +273,7 @@ function ResultView({
         <Details
           name={result.purchaserName}
           seat={result.seatLabel}
+          tier={result.tierName}
           order={result.orderNumber}
           event={result.eventName}
         />
@@ -289,6 +294,7 @@ function ResultView({
         <Details
           name={result.purchaserName}
           seat={result.seatLabel}
+          tier={result.tierName}
           order={result.orderNumber}
           event={result.eventName}
         />
@@ -315,11 +321,14 @@ function ResultView({
 function Details({
   name,
   seat,
+  tier,
   order,
   event,
 }: {
   name: string;
-  seat: string;
+  // General-admission tickets have no seat; seated events still do.
+  seat?: string | null;
+  tier?: string | null;
   order: string;
   event?: string;
 }) {
@@ -327,7 +336,8 @@ function Details({
     <div className="mx-auto mt-6 max-w-xs space-y-2 rounded-lg bg-secondary p-4 text-left text-sm">
       {event ? <Row label="Event" value={event} /> : null}
       <Row label="Guest" value={name} />
-      <Row label="Seat" value={seat} />
+      {tier ? <Row label="Ticket" value={tier} /> : null}
+      {seat ? <Row label="Seat" value={seat} /> : null}
       <Row label="Order" value={order} />
     </div>
   );

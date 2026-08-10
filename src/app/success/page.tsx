@@ -8,9 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
+import { parseItems } from "@/lib/orders";
 import { fulfillOrder } from "@/lib/orders";
 import { formatEuros } from "@/lib/config";
-import { compareSeatLabels } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +25,13 @@ async function fetchOrder(sessionId?: string, orderNumber?: string) {
   if (sessionId) {
     return prisma.order.findUnique({
       where: { stripeSessionId: sessionId },
-      include: { seats: true, event: true },
+      include: { event: true },
     });
   }
   if (orderNumber) {
     return prisma.order.findUnique({
       where: { orderNumber },
-      include: { seats: true, event: true },
+      include: { event: true },
     });
   }
   return null;
@@ -126,10 +126,10 @@ function Confirmation({ order }: { order: LoadedOrder }) {
         <div className="mt-8 space-y-4 rounded-lg bg-secondary p-6 text-left">
           <Detail
             icon={Ticket}
-            label="Seats"
-            value={order.seats
-              .map((s) => s.label)
-              .sort(compareSeatLabels)
+            label="Tickets"
+            value={parseItems(order.itemsJson)
+              .filter((i) => i.quantity > 0)
+              .map((i) => `${i.quantity} × ${i.tier}`)
               .join(", ")}
           />
           <Detail
@@ -158,6 +158,12 @@ function Confirmation({ order }: { order: LoadedOrder }) {
           Your PDF tickets (with QR codes) have been emailed to you. Please bring
           them to the entrance.
         </p>
+
+        {event.notice ? (
+          <p className="mt-5 rounded-lg border-l-4 border-gold bg-navy-50/50 p-4 text-left text-sm leading-relaxed text-navy-800">
+            {event.notice}
+          </p>
+        ) : null}
 
         <div className="mt-6 flex justify-center gap-3">
           <Button asChild variant="outline">

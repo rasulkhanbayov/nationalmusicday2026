@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -8,11 +10,13 @@ import {
   Music2,
   ArrowRight,
   ExternalLink,
+  Instagram,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { priceLabel } from "@/lib/config";
 import type { EventView } from "@/lib/events";
+import { useLanguage } from "./language-provider";
+import { TicketPurchase } from "./ticket-purchase";
 
 // Full event detail page body (hero → facts → about → artists → program →
 // venue → CTA), driven entirely by an EventView. Shared shape for any event.
@@ -27,8 +31,10 @@ export function EventDetail({
   // longer track reality. Set an event's status to SOLD_OUT in the admin to
   // mark it sold out; the seat-count check only matters if the built-in
   // booking flow is re-enabled.
-  const soldOut = available <= 0 || event.status === "SOLD_OUT";
+  const soldOut = event.status === "SOLD_OUT";
   const isPast = event.status === "PAST";
+  // Tickets are only purchasable for a live, non-sold-out event.
+  const canBuy = !soldOut && !isPast;
 
   return (
     <>
@@ -36,9 +42,7 @@ export function EventDetail({
       <QuickFacts event={event} />
       {event.description ? <About event={event} /> : null}
       {event.artists.length > 0 ? <Artists event={event} /> : null}
-      {event.tiers.length > 1 ? (
-        <Tiers event={event} soldOut={soldOut} isPast={isPast} />
-      ) : null}
+      {canBuy ? <Tickets event={event} /> : null}
       {event.program.length > 0 ? <Program event={event} /> : null}
       <Heritage />
       <Venue event={event} />
@@ -47,15 +51,22 @@ export function EventDetail({
   );
 }
 
-function ctaLabel(event: EventView, soldOut: boolean, isPast: boolean) {
-  if (isPast) return "Event Ended";
-  if (soldOut) return "Sold Out";
-  if (!event.ticketUrl) return "Tickets Coming Soon";
-  if (event.isFree) return "Reserve Your Free Place";
-  const price = priceLabel(false, entryPriceCents(event));
+type T = ReturnType<typeof useLanguage>["t"];
+
+function ctaLabel(
+  event: EventView,
+  soldOut: boolean,
+  isPast: boolean,
+  t: T,
+  price: (c: number) => string,
+) {
+  if (isPast) return t.event.ended;
+  if (soldOut) return t.event.soldOut;
+  if (event.isFree) return t.event.reserveFree;
+  const p = price(entryPriceCents(event));
   return event.tiers.length > 1
-    ? `Buy Tickets — from ${price}`
-    : `Buy Tickets — ${price}`;
+    ? `${t.event.buyTickets} — ${t.events.from} ${p}`
+    : `${t.event.buyTickets} — ${p}`;
 }
 
 /** Lowest tier price, falling back to the event's own price. */
@@ -64,37 +75,34 @@ function entryPriceCents(event: EventView): number {
   return Math.min(...event.tiers.map((t) => t.priceCents));
 }
 
-function ctaBlurb(event: EventView, soldOut: boolean, isPast: boolean): string {
-  if (isPast) return "This event has already taken place. Browse our upcoming concerts for what's next.";
-  if (soldOut) return "This event is sold out. Browse our upcoming concerts for what's next.";
-  if (!event.ticketUrl)
-    return "Tickets for this event are not on sale yet. Check back soon for booking details.";
-  if (event.isFree)
-    return "Admission is free, but places are limited. Reserve yours through our ticketing partner.";
-  return event.tiers.length > 1
-    ? "Choose the ticket that suits you below — both admit one person to the full concert. Booking runs through our ticketing partner."
-    : `Tickets are ${priceLabel(false, event.priceCents)} each and are booked through our ticketing partner.`;
+function ctaBlurb(
+  event: EventView,
+  soldOut: boolean,
+  isPast: boolean,
+  t: T,
+): string {
+  if (isPast) return t.event.blurbPast;
+  if (soldOut) return t.event.blurbSoldOut;
+  return t.checkout.sub;
 }
 
 /**
- * The primary ticket CTA. Tickets are sold on an external site, so this is an
- * outbound link rather than an internal route. When the event has no ticketUrl
- * (or is sold out / past) it renders as a disabled button instead of a dead
- * link.
+ * The primary ticket CTA. Tickets are sold on this site via Stripe, so the
+ * button scrolls down to the purchase form. Sold-out and past events render a
+ * disabled button instead.
  */
 function TicketButton({
   event,
   soldOut,
   isPast,
-  label,
 }: {
   event: EventView;
   soldOut: boolean;
   isPast: boolean;
-  label?: string;
 }) {
-  const disabled = soldOut || isPast || !event.ticketUrl;
-  const text = label && !disabled ? label : ctaLabel(event, soldOut, isPast);
+  const { t, price } = useLanguage();
+  const disabled = soldOut || isPast;
+  const text = ctaLabel(event, soldOut, isPast, t, price);
 
   if (disabled) {
     return (
@@ -108,8 +116,8 @@ function TicketButton({
 
   return (
     <Button asChild variant="gold" size="lg">
-      <a href={event.ticketUrl!} target="_blank" rel="noopener noreferrer">
-        <TicketIcon /> {text} <ExternalLink />
+      <a href="#tickets">
+        <TicketIcon /> {text}
       </a>
     </Button>
   );
@@ -124,6 +132,7 @@ function Hero({
   soldOut: boolean;
   isPast: boolean;
 }) {
+  const { t, price, dateLong, content } = useLanguage();
   return (
     <section className="relative isolate overflow-hidden bg-navy-950 text-white">
       <div className="absolute inset-0 -z-10">
@@ -157,17 +166,17 @@ function Hero({
 
       <div className="container flex min-h-[78vh] flex-col items-center justify-center py-24 text-center">
         <span className="section-eyebrow animate-fade-up">
-          {event.dateLong} · {event.venue.city}
+          {dateLong(event.startsAt)} · {event.venue.city}
         </span>
         <h1 className="mt-2 max-w-4xl animate-fade-up font-serif text-4xl font-bold leading-[1.05] sm:text-6xl">
-          {event.name}
+          {content(event.name, event.nameEn)}
         </h1>
         {event.subtitle ? (
           <p
             className="mt-6 max-w-2xl animate-fade-up text-lg text-white/75 sm:text-xl"
             style={{ animationDelay: "0.1s" }}
           >
-            {event.subtitle}
+            {content(event.subtitle, event.subtitleEn)}
           </p>
         ) : null}
 
@@ -183,7 +192,7 @@ function Hero({
             className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
           >
             <Link href="/events">
-              All Events <ArrowRight />
+              {t.event.allEvents} <ArrowRight />
             </Link>
           </Button>
         </div>
@@ -193,11 +202,12 @@ function Hero({
           style={{ animationDelay: "0.3s" }}
         >
           {event.isFree
-            ? "Free admission"
+            ? t.event.freeAdmission
             : event.tiers.length > 1
-              ? `from ${priceLabel(false, entryPriceCents(event))}`
-              : `${priceLabel(false, event.priceCents)} per ticket`}{" "}
-          · Doors {event.doorsTime ?? event.startTime} · {event.venue.name}
+              ? `${t.events.from} ${price(entryPriceCents(event))}`
+              : `${price(event.priceCents)} ${t.event.perTicket}`}{" "}
+          · {t.event.doors} {event.doorsTime ?? event.startTime} ·{" "}
+          {event.venue.name}
         </p>
       </div>
     </section>
@@ -205,15 +215,16 @@ function Hero({
 }
 
 function QuickFacts({ event }: { event: EventView }) {
+  const { t, dateLong } = useLanguage();
   const timing = event.doorsTime
-    ? `Doors ${event.doorsTime} · Start ${event.startTime}`
-    : `Start ${event.startTime}`;
+    ? `${t.event.doors} ${event.doorsTime} · ${t.event.start} ${event.startTime}`
+    : `${t.event.start} ${event.startTime}`;
   const facts = [
-    { icon: CalendarDays, label: "Date", value: event.dateLong },
-    { icon: Clock, label: "Time", value: timing },
+    { icon: CalendarDays, label: t.event.date, value: dateLong(event.startsAt) },
+    { icon: Clock, label: t.event.time, value: timing },
     {
       icon: MapPin,
-      label: "Venue",
+      label: t.event.venue,
       value: `${event.venue.name}, ${event.venue.city}`,
     },
   ];
@@ -250,11 +261,17 @@ function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) 
 }
 
 function About({ event }: { event: EventView }) {
-  const paragraphs = event.description!.split("\n").filter((p) => p.trim());
+  const { t, content } = useLanguage();
+  const paragraphs = content(event.description, event.descriptionEn)
+    .split("\n")
+    .filter((p) => p.trim());
   return (
     <section className="relative overflow-hidden bg-navy-50/40 py-24">
       <div className="container">
-        <SectionHeading eyebrow="About the Event" title="An Evening of Heritage" />
+        <SectionHeading
+          eyebrow={t.event.aboutEyebrow}
+          title={t.event.aboutTitle}
+        />
         <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5 text-lg leading-relaxed text-navy-800/90">
             {/* Drop cap on the opening paragraph for an editorial feel. */}
@@ -273,16 +290,15 @@ function About({ event }: { event: EventView }) {
           </div>
           <figure className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
             <Image
-              src="/images/folk-musicians.jpeg"
-              alt="Painting of Azerbaijani folk musicians playing traditional wind and percussion instruments"
-              width={736}
-              height={651}
+              src="/images/mugham-ensemble.jpeg"
+              alt="Painting of musicians playing daf, tar and kamancheh"
+              width={700}
+              height={618}
               sizes="(min-width: 1024px) 40vw, 100vw"
               className="h-auto w-full object-cover"
             />
             <figcaption className="border-t border-border px-5 py-3 text-sm text-muted-foreground">
-              Traditional Azerbaijani musicians — the living roots of the
-              evening&rsquo;s programme.
+              {t.event.caption}
             </figcaption>
           </figure>
         </div>
@@ -291,11 +307,22 @@ function About({ event }: { event: EventView }) {
   );
 }
 
+/** "https://www.instagram.com/name/?x=1" → "@name" for display. */
+function instagramHandle(url: string): string {
+  const path = url.split("?")[0].replace(/\/+$/, "");
+  const handle = path.slice(path.lastIndexOf("/") + 1);
+  return handle ? `@${handle}` : "Instagram";
+}
+
 function Artists({ event }: { event: EventView }) {
+  const { t, content } = useLanguage();
   return (
     <section className="bg-white py-24">
       <div className="container">
-        <SectionHeading eyebrow="Artists" title="Performers" />
+        <SectionHeading
+          eyebrow={t.event.artistsEyebrow}
+          title={t.event.artistsTitle}
+        />
         <div className="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {event.artists.map((a) => (
             <Card
@@ -312,12 +339,23 @@ function Artists({ event }: { event: EventView }) {
                 </h3>
                 <div className="mx-auto my-2 h-px w-8 bg-gold/40" />
                 <p className="text-sm font-medium uppercase tracking-wider text-gold">
-                  {a.role}
+                  {content(a.role, a.roleEn)}
                 </p>
                 {a.bio ? (
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    {a.bio}
+                    {content(a.bio, a.bioEn)}
                   </p>
+                ) : null}
+                {a.instagram ? (
+                  <a
+                    href={a.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-navy-800 transition-colors hover:border-gold/50 hover:bg-gold/5 hover:text-gold-dark"
+                  >
+                    <Instagram className="h-3.5 w-3.5" />
+                    {instagramHandle(a.instagram)}
+                  </a>
                 ) : null}
               </CardContent>
             </Card>
@@ -328,65 +366,34 @@ function Artists({ event }: { event: EventView }) {
   );
 }
 
-/** Ticket tiers — shown when an event sells more than one ticket type. */
-function Tiers({
-  event,
-  soldOut,
-  isPast,
-}: {
-  event: EventView;
-  soldOut: boolean;
-  isPast: boolean;
-}) {
-  const cheapest = entryPriceCents(event);
+/** Ticket purchase — quantity per ticket type, then Stripe Checkout. */
+function Tickets({ event }: { event: EventView }) {
+  const { t } = useLanguage();
   return (
-    <section className="relative overflow-hidden bg-navy-50/40 py-24">
-      <div className="container-narrow">
-        <SectionHeading eyebrow="Eintritt" title="Tickets" />
-        <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
-          {event.tiers.map((t) => {
-            const isEntry = t.priceCents === cheapest;
-            return (
-              <Card
-                key={t.name}
-                className={`relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg ${
-                  isEntry ? "border-gold/50" : ""
-                }`}
-              >
-                {!isEntry ? (
-                  <span className="absolute right-4 top-4 rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-dark">
-                    Supporter
-                  </span>
-                ) : null}
-                <CardContent className="pt-7">
-                  <h3 className="font-serif text-xl font-semibold text-navy-900">
-                    {t.name}
-                  </h3>
-                  <p className="mt-4 font-serif text-4xl font-bold text-navy-900">
-                    {priceLabel(false, t.priceCents)}
-                  </p>
-                  {t.note ? (
-                    <p className="mt-2 text-sm text-muted-foreground">{t.note}</p>
-                  ) : null}
-                  <div className="gold-rule mt-6" />
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        <div className="mt-10 flex justify-center">
-          <TicketButton event={event} soldOut={soldOut} isPast={isPast} />
-        </div>
+    <section id="tickets" className="relative overflow-hidden bg-navy-50/40 py-24">
+      <div className="container">
+        <SectionHeading
+          eyebrow={t.event.ticketsEyebrow}
+          title={t.checkout.heading}
+        />
+        <p className="mx-auto -mt-6 mb-10 max-w-2xl text-center text-muted-foreground">
+          {t.checkout.sub}
+        </p>
+        <TicketPurchase event={event} />
       </div>
     </section>
   );
 }
 
 function Program({ event }: { event: EventView }) {
+  const { t } = useLanguage();
   return (
     <section className="bg-navy-50/40 py-24">
       <div className="container-narrow">
-        <SectionHeading eyebrow="Program" title="The Evening's Music" />
+        <SectionHeading
+          eyebrow={t.event.programEyebrow}
+          title={t.event.programTitle}
+        />
         <div className="mx-auto max-w-2xl space-y-10">
           {event.program.map((block) => (
             <div key={block.part}>
@@ -414,14 +421,18 @@ function Program({ event }: { event: EventView }) {
 }
 
 function Venue({ event }: { event: EventView }) {
+  const { t } = useLanguage();
+  // Drop any hall/room suffix (e.g. "— Halle 1 & 2") before geocoding: Google
+  // finds the building, not the room, and the extra text breaks the lookup.
+  const mapsVenue = event.venue.name.split(/\s+[—–-]\s+/)[0];
   const mapsQuery = encodeURIComponent(
-    `${event.venue.name}, ${event.venue.street}, ${event.venue.postalCode} ${event.venue.city}`,
+    `${mapsVenue}, ${event.venue.street}, ${event.venue.postalCode} ${event.venue.city}`,
   );
   return (
     <section className="bg-white py-24">
       <div className="container grid items-stretch gap-10 lg:grid-cols-2">
         <div className="flex flex-col justify-center">
-          <span className="section-eyebrow">Venue</span>
+          <span className="section-eyebrow">{t.event.venueEyebrow}</span>
           <h2 className="text-3xl font-bold text-navy-900 sm:text-4xl">
             {event.venue.name}
           </h2>
@@ -439,7 +450,7 @@ function Venue({ event }: { event: EventView }) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <MapPin /> Open in Maps
+                <MapPin /> {t.event.openInMaps}
               </a>
             </Button>
           </div>
@@ -460,13 +471,14 @@ function Venue({ event }: { event: EventView }) {
 
 /** Editorial band pairing the instruments/composers artwork with context. */
 function Heritage() {
+  const { t } = useLanguage();
   return (
     <section className="bg-white py-24">
       <div className="container grid items-center gap-12 lg:grid-cols-2">
         <figure className="order-2 overflow-hidden rounded-2xl bg-navy-50/40 lg:order-1">
           <Image
             src="/images/instruments-composers.jpeg"
-            alt="Traditional Azerbaijani instruments — tar, kamancheh and daf — layered over portraits of the country's classical composers"
+            alt="Musical instruments — tar, kamancheh and daf — layered over portraits of composers"
             width={500}
             height={433}
             sizes="(min-width: 1024px) 45vw, 100vw"
@@ -474,19 +486,16 @@ function Heritage() {
           />
         </figure>
         <div className="order-1 lg:order-2">
-          <span className="section-eyebrow">Heritage</span>
+          <span className="section-eyebrow">{t.event.heritageEyebrow}</span>
           <h2 className="text-3xl font-bold text-navy-900 sm:text-4xl">
-            Where Europe Meets Asia
+            {t.event.heritageTitle}
           </h2>
           <div className="gold-rule mt-5" />
           <p className="mt-6 text-lg leading-relaxed text-navy-800/90">
-            The tar, the kamancheh and the daf carry a musical language shaped
-            over centuries at the crossroads of two continents. Alongside them
-            stand the composers who brought that language to the concert hall.
+            {t.event.heritageP1}
           </p>
           <p className="mt-4 text-lg leading-relaxed text-navy-800/90">
-            Our programme moves between both worlds — traditional folk melodies
-            and the works of Azerbaijan&rsquo;s classical composers.
+            {t.event.heritageP2}
           </p>
         </div>
       </div>
@@ -503,16 +512,17 @@ function TicketCta({
   soldOut: boolean;
   isPast: boolean;
 }) {
+  const { t } = useLanguage();
   return (
     <section className="relative isolate overflow-hidden bg-navy-950 py-24 text-white">
       <div className="absolute left-1/2 top-0 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-gold/10 blur-3xl" />
       <div className="container-narrow text-center">
-        <span className="section-eyebrow">Tickets</span>
+        <span className="section-eyebrow">{t.event.ticketsEyebrow}</span>
         <h2 className="text-3xl font-bold sm:text-4xl">
-          {event.isFree ? "Reserve Your Place" : "Get Your Tickets"}
+          {event.isFree ? t.event.ticketsTitleFree : t.event.ticketsTitle}
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-white/75">
-          {ctaBlurb(event, soldOut, isPast)}
+          {ctaBlurb(event, soldOut, isPast, t)}
         </p>
         <div className="mt-8 flex flex-col items-center gap-3">
           <TicketButton event={event} soldOut={soldOut} isPast={isPast} />

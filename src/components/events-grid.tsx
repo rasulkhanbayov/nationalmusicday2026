@@ -1,11 +1,15 @@
+"use client";
+
 import { EventCard, type EventCardData } from "@/components/event-card";
+import { useLanguage } from "./language-provider";
 
 /** Renders a responsive grid of event cards, or an empty state. */
 export function EventsGrid({ events }: { events: EventCardData[] }) {
+  const { t } = useLanguage();
   if (events.length === 0) {
     return (
       <p className="py-16 text-center text-muted-foreground">
-        No events are currently scheduled. Please check back soon.
+        {t.home.noEvents}
       </p>
     );
   }

@@ -1,10 +1,21 @@
 import { prisma } from "./prisma";
-import { OrderStatus, SeatStatus, Prisma } from "@prisma/client";
-import { formatOrderNumber, buildTicketId } from "./utils";
-import { reserveSeats, SeatUnavailableError } from "./seats";
+import { OrderStatus, Prisma } from "@prisma/client";
+import { formatOrderNumber } from "./utils";
 import { sendConfirmationEmail } from "./email";
 import { toEventView } from "./events";
 import type { TicketData } from "./ticket-pdf";
+
+/** One line of a general-admission order: N tickets of a given type. */
+export type OrderItem = { tier: string; priceCents: number; quantity: number };
+
+export function parseItems(raw: string | null): OrderItem[] {
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as OrderItem[];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Allocates the next sequential order number for an event using the event's
@@ -29,18 +40,19 @@ export type CreateOrderInput = {
   lastName: string;
   email: string;
   phone?: string | null;
-  seatLabels: string[];
-  unitPriceCents: number;
-  isFree: boolean;
+  items: OrderItem[];
+  quantity: number;
+  totalCents: number;
 };
 
-/** Creates a PENDING order for an event with a fresh order number. */
+/** Creates a PENDING order with a fresh order number. */
 export async function createPendingOrder(
   input: CreateOrderInput,
 ): Promise<{ id: string; orderNumber: string }> {
-  const quantity = input.seatLabels.length;
-  const unit = input.isFree ? 0 : input.unitPriceCents;
-  const totalCents = unit * quantity;
+  // Entry-level price, used for the legacy single-price column.
+  const unitPriceCents = input.items.length
+    ? Math.min(...input.items.map((i) => i.priceCents))
+    : 0;
 
   return prisma.$transaction(async (tx) => {
     const orderNumber = await nextOrderNumber(tx, input.eventId);
@@ -49,14 +61,15 @@ export async function createPendingOrder(
         eventId: input.eventId,
         orderNumber,
         status: OrderStatus.PENDING,
-        isFree: input.isFree,
+        isFree: input.totalCents === 0,
         firstName: input.firstName,
         lastName: input.lastName,
         email: input.email,
         phone: input.phone || null,
-        unitPriceCents: unit,
-        quantity,
-        totalCents,
+        unitPriceCents,
+        quantity: input.quantity,
+        totalCents: input.totalCents,
+        itemsJson: JSON.stringify(input.items),
       },
     });
     return { id: order.id, orderNumber: order.orderNumber };
@@ -64,13 +77,12 @@ export async function createPendingOrder(
 }
 
 /**
- * Fulfills an order: marks it PAID, converts its held seats to SOLD, generates
- * one Ticket per seat, and sends the confirmation email. Works for both paid
- * (post-Stripe) and free (post-RSVP) orders — the email copy adapts via the
- * order's isFree flag.
+ * Fulfills a paid order: marks it PAID, issues one Ticket per purchased ticket
+ * (each with its own unique id encoded in a QR code), and emails the tickets.
  *
- * Idempotent — safe to call multiple times (Stripe may deliver a webhook more
- * than once). If already PAID with tickets, returns early without re-sending.
+ * Idempotent — Stripe may deliver a webhook more than once, and the success
+ * page also triggers fulfillment as a fallback. If the order already has
+ * tickets, this returns early without re-issuing or re-sending.
  */
 export async function fulfillOrder(params: {
   orderId: string;
@@ -82,43 +94,43 @@ export async function fulfillOrder(params: {
     async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        include: { seats: true, tickets: true, event: true },
+        include: { tickets: true, event: true },
       });
       if (!order) throw new Error(`Order ${orderId} not found`);
 
-      // Already fulfilled — short-circuit (idempotency).
       if (order.status === OrderStatus.PAID && order.tickets.length > 0) {
         return { order, ticketData: [] as TicketData[], alreadyFulfilled: true };
       }
 
       const purchaserName = `${order.firstName} ${order.lastName}`.trim();
+      const items = parseItems(order.itemsJson);
       const ticketData: TicketData[] = [];
 
-      for (const seat of order.seats) {
-        const ticketId = buildTicketId(order.orderNumber, seat.label);
-
-        await tx.seat.update({
-          where: { id: seat.id },
-          data: { status: SeatStatus.SOLD, reservedUntil: null },
-        });
-
-        await tx.ticket.upsert({
-          where: { seatId: seat.id },
-          update: {},
-          create: {
+      // One ticket row per purchased admission, numbered within the order so
+      // ids stay stable and unique: NM2026-000123-01, -02, …
+      let n = 0;
+      for (const item of items) {
+        for (let i = 0; i < item.quantity; i++) {
+          n += 1;
+          const ticketId = `${order.orderNumber}-${String(n).padStart(2, "0")}`;
+          await tx.ticket.upsert({
+            where: { ticketId },
+            update: {},
+            create: {
+              ticketId,
+              eventId: order.eventId,
+              orderId: order.id,
+              tierName: item.tier,
+              priceCents: item.priceCents,
+            },
+          });
+          ticketData.push({
             ticketId,
-            eventId: order.eventId,
-            orderId: order.id,
-            seatId: seat.id,
-          },
-        });
-
-        ticketData.push({
-          ticketId,
-          orderNumber: order.orderNumber,
-          seatLabel: seat.label,
-          purchaserName,
-        });
+            orderNumber: order.orderNumber,
+            tierName: item.tier,
+            purchaserName,
+          });
+        }
       }
 
       await tx.order.update({
@@ -135,20 +147,36 @@ export async function fulfillOrder(params: {
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 
-  if (result.alreadyFulfilled) {
-    return { alreadyFulfilled: true };
+  if (result.alreadyFulfilled) return { alreadyFulfilled: true };
+
+  // Close sales automatically once the last ticket is issued, so the event
+  // page and checkout both report sold out without manual admin action.
+  const cap = result.order.event.capacity;
+  if (cap !== null) {
+    const issued = await prisma.ticket.count({
+      where: { eventId: result.order.eventId },
+    });
+    if (issued >= cap && result.order.event.status !== "SOLD_OUT") {
+      await prisma.event
+        .update({
+          where: { id: result.order.eventId },
+          data: { status: "SOLD_OUT" },
+        })
+        .catch(() => {});
+    }
   }
 
-  // Send email outside the transaction so a slow provider doesn't hold DB
-  // locks. Failure here is logged but does not roll back the sale/reservation.
+  // Send outside the transaction so a slow provider doesn't hold DB locks.
+  // A send failure is logged but never rolls back a completed sale — the
+  // admin can resend from the dashboard.
   try {
     await sendConfirmationEmail({
       to: result.order.email,
       purchaserName: `${result.order.firstName} ${result.order.lastName}`.trim(),
       orderNumber: result.order.orderNumber,
-      seatLabels: result.ticketData.map((t) => t.seatLabel),
       totalCents: result.order.totalCents,
       isFree: result.order.isFree,
+      items: parseItems(result.order.itemsJson),
       event: toEventView(result.order.event),
       tickets: result.ticketData,
     });
@@ -162,51 +190,14 @@ export async function fulfillOrder(params: {
   return { alreadyFulfilled: false };
 }
 
-/**
- * End-to-end free reservation: creates the order, holds the seats, and
- * immediately fulfills (no Stripe). Returns the order number so the client can
- * route to the success page.
- */
-export async function createFreeReservation(input: {
-  eventId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string | null;
-  seatLabels: string[];
-}): Promise<{ orderNumber: string }> {
-  const order = await createPendingOrder({
-    ...input,
-    unitPriceCents: 0,
-    isFree: true,
-  });
-
-  try {
-    await reserveSeats(input.eventId, input.seatLabels, order.id);
-  } catch (err) {
-    await cancelOrder(order.id).catch(() => {});
-    throw err;
-  }
-
-  await fulfillOrder({ orderId: order.id });
-  return { orderNumber: order.orderNumber };
-}
-
-/** Marks an order cancelled and releases its held seats. */
+/** Marks an order cancelled (payment abandoned or expired). */
 export async function cancelOrder(orderId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order || order.status === OrderStatus.PAID) return;
-
-    await tx.seat.updateMany({
-      where: { orderId, status: SeatStatus.RESERVED },
-      data: { status: SeatStatus.AVAILABLE, reservedUntil: null, orderId: null },
-    });
     await tx.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.CANCELLED },
     });
   });
 }
-
-export { SeatUnavailableError };

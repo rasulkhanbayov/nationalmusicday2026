@@ -3,7 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { fulfillOrder } from "@/lib/orders";
 import { formatEuros } from "@/lib/config";
-import { compareSeatLabels } from "@/lib/utils";
+import { parseItems } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +18,12 @@ export async function GET(req: NextRequest) {
   let order = sessionId
     ? await prisma.order.findUnique({
         where: { stripeSessionId: sessionId },
-        include: { seats: true, event: true },
+        include: { event: true },
       })
     : orderNumber
       ? await prisma.order.findUnique({
           where: { orderNumber },
-          include: { seats: true, event: true },
+          include: { event: true },
         })
       : null;
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         });
         order = await prisma.order.findUnique({
           where: { id: order.id },
-          include: { seats: true, event: true },
+          include: { event: true },
         });
       }
     } catch (err) {
@@ -57,8 +57,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const seats = order.seats.map((s) => s.label).sort(compareSeatLabels);
-
   return NextResponse.json({
     orderNumber: order.orderNumber,
     status: order.status,
@@ -66,13 +64,16 @@ export async function GET(req: NextRequest) {
     firstName: order.firstName,
     lastName: order.lastName,
     email: order.email,
-    seats,
+    items: parseItems(order.itemsJson),
     quantity: order.quantity,
     total: order.isFree ? "Free" : formatEuros(order.totalCents),
     paid: order.status === "PAID",
     event: {
       name: order.event.name,
+      nameEn: order.event.nameEn,
       slug: order.event.slug,
+      notice: order.event.notice,
+      noticeEn: order.event.noticeEn,
     },
   });
 }

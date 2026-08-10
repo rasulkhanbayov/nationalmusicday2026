@@ -1,14 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { CalendarDays, MapPin, Music2, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { priceLabel } from "@/lib/config";
 import type { EventView } from "@/lib/events";
+import { useLanguage } from "./language-provider";
 
 export type EventCardData = EventView & { available: number };
 
 export function EventCard({ event }: { event: EventCardData }) {
+  const { t, price, dateLong } = useLanguage();
   const soldOut = event.available <= 0 || event.status === "SOLD_OUT";
   const isPast = event.status === "PAST";
   const href = `/events/${event.slug}`;
@@ -32,17 +35,17 @@ export function EventCard({ event }: { event: EventCardData }) {
           <div className="absolute right-3 top-3 z-10">
             {isPast ? (
               <Badge variant="outline" className="bg-white/90">
-                Past
+                {t.events.ended}
               </Badge>
             ) : soldOut ? (
-              <Badge variant="destructive">Sold Out</Badge>
+              <Badge variant="destructive">{t.events.soldOut}</Badge>
             ) : event.isFree ? (
-              <Badge variant="success">Free</Badge>
+              <Badge variant="success">{t.events.free}</Badge>
             ) : (
               <Badge variant="gold">
                 {event.tiers.length > 1
-                  ? `from ${priceLabel(false, Math.min(...event.tiers.map((t) => t.priceCents)))}`
-                  : priceLabel(false, event.priceCents)}
+                  ? `${t.events.from} ${price(Math.min(...event.tiers.map((x) => x.priceCents)))}`
+                  : price(event.priceCents)}
               </Badge>
             )}
           </div>
@@ -62,7 +65,8 @@ export function EventCard({ event }: { event: EventCardData }) {
 
         <div className="mt-4 space-y-1.5 text-sm text-navy-800">
           <p className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-gold" /> {event.dateLong}
+            <CalendarDays className="h-4 w-4 text-gold" />{" "}
+            {dateLong(event.startsAt)}
           </p>
           <p className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-gold" /> {event.venue.name},{" "}
@@ -73,18 +77,18 @@ export function EventCard({ event }: { event: EventCardData }) {
         <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm text-muted-foreground">
             {isPast
-              ? "Ended"
+              ? t.events.ended
               : soldOut
-                ? "Sold out"
+                ? t.events.soldOut
                 : event.ticketUrl
-                  ? "Tickets available"
-                  : "Coming soon"}
+                  ? t.events.ticketsAvailable
+                  : t.events.comingSoon}
           </span>
           <Link
             href={href}
             className="flex items-center gap-1 text-sm font-semibold text-navy-900 group-hover:text-gold"
           >
-            Details <ArrowRight className="h-4 w-4" />
+            {t.events.details} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </CardContent>

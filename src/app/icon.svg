@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Commontone mark: navy tile with the brand's gold waveform.
+       The circle logo's wordmark is dropped here because it is illegible at
+       favicon sizes; the waveform alone still reads as the brand.
+       Bar heights follow the artwork's 34/83/128/83/34 proportions. -->
+  <rect width="64" height="64" rx="14" fill="#0a1733"/>
+  <g fill="#c9a14a">
+    <rect x="11.25" y="27"   width="5.5" height="10" rx="2.75"/>
+    <rect x="20.25" y="20.5" width="5.5" height="23" rx="2.75"/>
+    <rect x="29.25" y="14"   width="5.5" height="36" rx="2.75"/>
+    <rect x="38.25" y="20.5" width="5.5" height="23" rx="2.75"/>
+    <rect x="47.25" y="27"   width="5.5" height="10" rx="2.75"/>
+  </g>
+</svg>

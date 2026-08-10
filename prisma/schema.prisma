@@ -26,11 +26,17 @@ model Event {
   slug     String      @unique // URL segment, e.g. "national-music-day-2026"
   status   EventStatus @default(DRAFT)
 
-  // Display / detail content
-  name        String
-  subtitle    String?
-  type        String  @default("Concert") // e.g. "Classical Music Concert"
-  description String? // long-form intro paragraph(s)
+  // Display / detail content. The base fields hold the primary language (DE);
+  // the *En variants hold the English translation and are shown when the
+  // visitor switches to English. Empty *En falls back to the base field, so a
+  // partially translated event still renders.
+  name          String
+  nameEn        String?
+  subtitle      String?
+  subtitleEn    String?
+  type          String  @default("Concert") // e.g. "Classical Music Concert"
+  description   String? // long-form intro paragraph(s)
+  descriptionEn String?
 
   // Schedule
   startsAt  DateTime // event start (used for date display + schema)
@@ -55,7 +61,12 @@ model Event {
   priceCents Int     @default(0) // unit price in euro cents (paid events)
   currency   String  @default("eur")
 
-  // Seat layout for this event. Seats are generated from rows × seatsPerRow.
+  // Total tickets on sale for this event. Checkout refuses once the number of
+  // tickets already issued plus the requested quantity would exceed this.
+  // Null = unlimited.
+  capacity Int?
+
+  // Legacy seat layout (seated events only). General admission ignores these.
   rows        Int @default(12) // number of rows (A, B, …)
   seatsPerRow Int @default(10)
 
@@ -73,6 +84,11 @@ model Event {
   // JSON: [{ name, priceCents, note }] — shown when an event sells several
   // ticket types. priceCents above stays the entry-level price.
   tiersJson String?
+
+  // Admission terms shown near the ticket picker, on the success page and in
+  // the confirmation email (age limits, refund policy, what's included).
+  notice   String?
+  noticeEn String?
 
   contactEmail String?
 
@@ -147,10 +163,13 @@ model Order {
   phone     String?
 
   // Pricing captured at purchase time. For free orders these are 0.
+  // unitPriceCents is the entry-level price; per-tier detail lives in
+  // itemsJson: [{ tier, priceCents, quantity }].
   unitPriceCents Int
   quantity       Int
   totalCents     Int
   currency       String @default("eur")
+  itemsJson      String?
 
   stripeSessionId       String? @unique
   stripePaymentIntentId String?
@@ -181,8 +200,13 @@ model Ticket {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  seatId String @unique
-  seat   Seat   @relation(fields: [seatId], references: [id])
+  // General-admission events have no seat; seated events keep the link.
+  seatId String? @unique
+  seat   Seat?   @relation(fields: [seatId], references: [id])
+
+  // Which ticket type this is, e.g. "Standard Ticket" / "Support Ticket".
+  tierName   String?
+  priceCents Int     @default(0)
 
   // Check-in tracking for the door scanner.
   checkedIn   Boolean   @default(false)

@@ -1,13 +1,29 @@
 import { prisma } from "./prisma";
 import { Event, EventStatus, SeatStatus } from "@prisma/client";
 
-export type Artist = { name: string; role: string; bio: string };
+export type Artist = {
+  name: string;
+  role: string;
+  bio: string;
+  // English variants — fall back to the base field when absent.
+  roleEn?: string;
+  bioEn?: string;
+  // Optional Instagram profile URL — rendered as a link on the artist card.
+  instagram?: string;
+};
 export type ProgramBlock = {
   part: string;
   pieces: { composer: string; title: string }[];
 };
 // One purchasable ticket type. Events with a single price leave this empty.
-export type Tier = { name: string; priceCents: number; note?: string };
+export type Tier = {
+  name: string;
+  priceCents: number;
+  note?: string;
+  // English variants — fall back to the base fields when absent.
+  nameEn?: string;
+  noteEn?: string;
+};
 
 // A view-model layered over the raw Event row: parsed JSON + formatted dates +
 // a denormalized venue object so pages/email/PDF share one shape.
@@ -16,16 +32,21 @@ export type EventView = {
   slug: string;
   status: EventStatus;
   name: string;
+  nameEn: string | null;
   subtitle: string | null;
+  subtitleEn: string | null;
   type: string;
   description: string | null;
+  descriptionEn: string | null;
+  notice: string | null;
+  noticeEn: string | null;
   ticketUrl: string | null;
   isFree: boolean;
   priceCents: number;
   currency: string;
   rows: number;
   seatsPerRow: number;
-  capacity: number;
+  capacity: number | null;
   orderPrefix: string;
   doorsTime: string | null;
   startsAt: Date;
@@ -85,16 +106,21 @@ export function toEventView(e: Event): EventView {
     slug: e.slug,
     status: e.status,
     name: e.name,
+    nameEn: e.nameEn,
     subtitle: e.subtitle,
+    subtitleEn: e.subtitleEn,
     type: e.type,
     description: e.description,
+    descriptionEn: e.descriptionEn,
+    notice: e.notice,
+    noticeEn: e.noticeEn,
     ticketUrl: e.ticketUrl,
     isFree: e.isFree,
     priceCents: e.priceCents,
     currency: e.currency,
     rows: e.rows,
     seatsPerRow: e.seatsPerRow,
-    capacity: e.rows * e.seatsPerRow,
+    capacity: e.capacity,
     orderPrefix: e.orderPrefix,
     doorsTime: e.doorsTime,
     startsAt: e.startsAt,
@@ -117,6 +143,20 @@ export function toEventView(e: Event): EventView {
     program: parseJson<ProgramBlock[]>(e.programJson, []),
     tiers: parseJson<Tier[]>(e.tiersJson, []),
   };
+}
+
+/** How many tickets have been issued for an event (paid orders only). */
+export async function ticketsSold(eventId: string): Promise<number> {
+  return prisma.ticket.count({ where: { eventId } });
+}
+
+/** Remaining tickets, or null when the event has no capacity limit. */
+export async function ticketsRemaining(
+  eventId: string,
+  capacity: number | null,
+): Promise<number | null> {
+  if (capacity === null) return null;
+  return Math.max(0, capacity - (await ticketsSold(eventId)));
 }
 
 /** Row letters for an event, e.g. ["A","B",...]. */
@@ -176,6 +216,7 @@ export async function listPublicEventsWithAvailability(): Promise<
   const soldByEvent = new Map(sold.map((s) => [s.eventId, s._count._all]));
   return events.map((e) => ({
     ...e,
-    available: e.capacity - (soldByEvent.get(e.id) ?? 0),
+    available:
+      e.capacity === null ? Infinity : e.capacity - (soldByEvent.get(e.id) ?? 0),
   }));
 }

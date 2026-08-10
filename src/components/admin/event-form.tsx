@@ -13,9 +13,14 @@ export type EventFormValues = {
   slug: string;
   status: "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "PAST";
   name: string;
+  nameEn: string;
   subtitle: string;
+  subtitleEn: string;
   type: string;
   description: string;
+  descriptionEn: string;
+  notice: string;
+  noticeEn: string;
   startsAt: string; // datetime-local
   endsAt: string;
   doorsTime: string;
@@ -28,6 +33,7 @@ export type EventFormValues = {
   imageUrl: string;
   isFree: boolean;
   priceEuros: string;
+  capacity: string;
   rows: string;
   seatsPerRow: string;
   orderPrefix: string;
@@ -38,9 +44,14 @@ export const emptyEvent: EventFormValues = {
   slug: "",
   status: "DRAFT",
   name: "",
+  nameEn: "",
   subtitle: "",
+  subtitleEn: "",
   type: "Concert",
   description: "",
+  descriptionEn: "",
+  notice: "",
+  noticeEn: "",
   startsAt: "",
   endsAt: "",
   doorsTime: "",
@@ -53,6 +64,7 @@ export const emptyEvent: EventFormValues = {
   imageUrl: "",
   isFree: false,
   priceEuros: "25",
+  capacity: "",
   rows: "12",
   seatsPerRow: "10",
   orderPrefix: "EV",
@@ -93,9 +105,14 @@ export function EventForm({
       slug: v.slug || slugify(v.name),
       status: v.status,
       name: v.name,
+      nameEn: v.nameEn,
       subtitle: v.subtitle,
+      subtitleEn: v.subtitleEn,
       type: v.type,
       description: v.description,
+      descriptionEn: v.descriptionEn,
+      notice: v.notice,
+      noticeEn: v.noticeEn,
       startsAt: v.startsAt,
       endsAt: v.endsAt,
       doorsTime: v.doorsTime,
@@ -108,6 +125,7 @@ export function EventForm({
       imageUrl: v.imageUrl.trim(),
       isFree: v.isFree,
       priceEuros: v.isFree ? 0 : parseFloat(v.priceEuros) || 0,
+      capacity: parseInt(v.capacity, 10) || 0,
       rows: parseInt(v.rows, 10) || 0,
       seatsPerRow: parseInt(v.seatsPerRow, 10) || 0,
       orderPrefix: v.orderPrefix,
@@ -155,16 +173,29 @@ export function EventForm({
           <h2 className="font-serif text-lg font-semibold text-navy-900">
             Event details
           </h2>
-          <Field label="Name" required>
-            <Input
-              required
-              value={v.name}
-              onChange={(e) => {
-                set("name", e.target.value);
-                if (mode === "create") set("slug", slugify(e.target.value));
-              }}
-            />
-          </Field>
+          <p className="text-sm text-muted-foreground">
+            Fields marked <strong>(EN)</strong> are shown when a visitor
+            switches the site to English. Leave one empty and the German text
+            is used for both languages.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name (DE)" required>
+              <Input
+                required
+                value={v.name}
+                onChange={(e) => {
+                  set("name", e.target.value);
+                  if (mode === "create") set("slug", slugify(e.target.value));
+                }}
+              />
+            </Field>
+            <Field label="Name (EN)">
+              <Input
+                value={v.nameEn}
+                onChange={(e) => set("nameEn", e.target.value)}
+              />
+            </Field>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Slug (URL)" required>
               <Input
@@ -188,12 +219,20 @@ export function EventForm({
               </select>
             </Field>
           </div>
-          <Field label="Subtitle">
-            <Input
-              value={v.subtitle}
-              onChange={(e) => set("subtitle", e.target.value)}
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Subtitle (DE)">
+              <Input
+                value={v.subtitle}
+                onChange={(e) => set("subtitle", e.target.value)}
+              />
+            </Field>
+            <Field label="Subtitle (EN)">
+              <Input
+                value={v.subtitleEn}
+                onChange={(e) => set("subtitleEn", e.target.value)}
+              />
+            </Field>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Type">
               <Input
@@ -210,11 +249,39 @@ export function EventForm({
               />
             </Field>
           </div>
-          <Field label="Description">
+          <Field label="Description (DE)">
             <textarea
               value={v.description}
               onChange={(e) => set("description", e.target.value)}
-              rows={4}
+              rows={5}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </Field>
+          <Field label="Description (EN)">
+            <textarea
+              value={v.descriptionEn}
+              onChange={(e) => set("descriptionEn", e.target.value)}
+              rows={5}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </Field>
+          <Field label="Admission notice (DE)">
+            <textarea
+              value={v.notice}
+              onChange={(e) => set("notice", e.target.value)}
+              rows={3}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Terms shown by the ticket picker, on the confirmation page and in
+              the ticket email (what&apos;s included, age limits, refunds).
+            </p>
+          </Field>
+          <Field label="Admission notice (EN)">
+            <textarea
+              value={v.noticeEn}
+              onChange={(e) => set("noticeEn", e.target.value)}
+              rows={3}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </Field>
@@ -297,6 +364,22 @@ export function EventForm({
             Tickets
           </h2>
 
+          <Field label="Ticket capacity">
+            <Input
+              type="number"
+              min="0"
+              placeholder="120"
+              value={v.capacity}
+              onChange={(e) => set("capacity", e.target.value)}
+              className="max-w-[160px]"
+            />
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Total tickets on sale. Checkout refuses once this many have been
+              issued, and the event flips to Sold out automatically. Leave empty
+              for unlimited.
+            </p>
+          </Field>
+
           <Field label="Event image">
             <Input
               placeholder="/images/mugham-ensemble.jpeg"
@@ -369,8 +452,8 @@ export function EventForm({
                 className="max-w-[160px]"
               />
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Displayed on the event page. The actual charge is handled by the
-                external ticket shop.
+                Entry-level price shown on cards and in the hero. Actual prices
+                per ticket type are set in the tiers.
               </p>
             </Field>
           ) : (

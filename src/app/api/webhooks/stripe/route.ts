@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const orderId = session.metadata?.orderId;
         if (orderId) {
-          // Release the held seats — buyer never completed payment.
+          // Buyer never completed payment — mark the order cancelled.
           await cancelOrder(orderId);
         }
         break;

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { cookies } from "next/headers";
 import { SITE, siteUrl } from "@/lib/constants";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/lib/i18n";
 
 const serif = Cormorant_Garamond({
   subsets: ["latin"],
@@ -67,13 +69,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Read the visitor's saved language so the first server render already
+  // matches their choice (no flash of the wrong language).
+  const cookieStore = await cookies();
+  const saved = cookieStore.get(LOCALE_COOKIE)?.value;
+  const locale = isLocale(saved) ? saved : DEFAULT_LOCALE;
+
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+    <html lang={locale} className={`${serif.variable} ${sans.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers locale={locale}>{children}</Providers>
       </body>
     </html>
   );

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
 import { sendConfirmationEmail } from "@/lib/email";
 import { toEventView } from "@/lib/events";
-import { buildTicketId, compareSeatLabels } from "@/lib/utils";
+import { parseItems } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { seats: true, event: true },
+    include: { tickets: { orderBy: { ticketId: "asc" } }, event: true },
   });
 
   if (!order || order.status !== OrderStatus.PAID) {
@@ -35,23 +35,22 @@ export async function POST(req: NextRequest) {
   }
 
   const purchaserName = `${order.firstName} ${order.lastName}`.trim();
-  const seats = order.seats
-    .slice()
-    .sort((a, b) => compareSeatLabels(a.label, b.label));
 
   try {
     await sendConfirmationEmail({
       to: order.email,
       purchaserName,
       orderNumber: order.orderNumber,
-      seatLabels: seats.map((s) => s.label),
       totalCents: order.totalCents,
       isFree: order.isFree,
+      items: parseItems(order.itemsJson),
       event: toEventView(order.event),
-      tickets: seats.map((s) => ({
-        ticketId: buildTicketId(order.orderNumber, s.label),
+      // Re-send the tickets that were actually issued, so ids match the
+      // originals (and any QR already in the buyer's inbox stays valid).
+      tickets: order.tickets.map((t) => ({
+        ticketId: t.ticketId,
         orderNumber: order.orderNumber,
-        seatLabel: s.label,
+        tierName: t.tierName ?? "Ticket",
         purchaserName,
       })),
     });

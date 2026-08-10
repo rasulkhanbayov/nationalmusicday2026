@@ -5,7 +5,8 @@ export type ValidationResult =
   | {
       status: "VALID";
       ticketId: string;
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
@@ -13,7 +14,8 @@ export type ValidationResult =
   | {
       status: "ALREADY_USED";
       ticketId: string;
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
@@ -23,7 +25,8 @@ export type ValidationResult =
       // Valid ticket, but for a different event than the one being scanned.
       status: "WRONG_EVENT";
       ticketId: string;
-      seatLabel: string;
+      seatLabel: string | null;
+      tierName: string | null;
       orderNumber: string;
       purchaserName: string;
       eventName: string;
@@ -57,7 +60,8 @@ export async function validateTicket(
     `${ticket.order.firstName} ${ticket.order.lastName}`.trim();
   const base = {
     ticketId,
-    seatLabel: ticket.seat.label,
+    seatLabel: ticket.seat?.label ?? null,
+    tierName: ticket.tierName ?? null,
     orderNumber: ticket.order.orderNumber,
     purchaserName,
     eventName: ticket.event.name,

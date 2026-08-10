@@ -3,11 +3,12 @@
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Lock, Music } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { BrandLogo } from "@/components/brand-logo";
 
 function LoginForm() {
   const router = useRouter();
@@ -101,10 +102,7 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-navy-950 px-6">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2 text-white">
-          <Music className="h-5 w-5 text-gold" />
-          <span className="font-serif text-lg font-semibold">
-            Common<span className="text-gold">tone</span>
-          </span>
+          <BrandLogo className="h-7 w-auto text-white" />
         </div>
         <Suspense fallback={null}>
           <LoginForm />

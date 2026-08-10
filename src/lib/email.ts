@@ -16,16 +16,24 @@ export type ConfirmationEmailInput = {
   to: string;
   purchaserName: string;
   orderNumber: string;
-  seatLabels: string[];
   totalCents: number;
   isFree: boolean;
+  /** Per-ticket-type breakdown, e.g. 2× Standard, 1× Support. */
+  items: { tier: string; priceCents: number; quantity: number }[];
   event: EventView;
   tickets: TicketData[];
 };
 
 function buildHtml(input: ConfirmationEmailInput): string {
   const { event } = input;
-  const seats = [...input.seatLabels].sort(compareSeatLabels).join(", ");
+  const ticketRows = input.items
+    .filter((i) => i.quantity > 0)
+    .map(
+      (i) =>
+        `<tr><td style="padding:2px 0;font-size:15px;">${i.quantity} × ${i.tier}</td>` +
+        `<td align="right" style="padding:2px 0;font-size:15px;">${formatEuros(i.priceCents * i.quantity)}</td></tr>`,
+    )
+    .join("");
   const navy = "#0a1733";
   const gold = "#c9a14a";
   const contact = event.contactEmail || SITE.contactEmail;
@@ -70,8 +78,8 @@ function buildHtml(input: ConfirmationEmailInput): string {
                   <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7a869c;">Venue</p>
                   <p style="margin:0 0 16px;font-size:15px;">${event.venue.name}<br/>${event.venue.street}, ${event.venue.postalCode} ${event.venue.city}</p>
 
-                  <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7a869c;">Seats</p>
-                  <p style="margin:0 0 16px;font-size:18px;font-weight:bold;color:${gold};">${seats}</p>
+                  <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7a869c;">Tickets</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">${ticketRows}</table>
 
                   ${totalRow}
                 </td></tr>
@@ -81,6 +89,11 @@ function buildHtml(input: ConfirmationEmailInput): string {
                 Please bring your ticket (printed or on your phone) to the entrance.
                 We look forward to seeing you.
               </p>
+              ${
+                event.notice
+                  ? `<p style="font-size:13px;line-height:1.6;color:#5a6784;background:#f8f9fc;border-left:3px solid ${gold};padding:12px 16px;margin:20px 0 0;">${event.notice}</p>`
+                  : ""
+              }
             </td>
           </tr>
           <tr>
@@ -99,7 +112,7 @@ function buildHtml(input: ConfirmationEmailInput): string {
 }
 
 /**
- * Sends the confirmation email with one PDF ticket attached per seat.
+ * Sends the confirmation email with one PDF ticket attached per admission.
  * Returns the Resend message id (or null if email is not configured).
  */
 export async function sendConfirmationEmail(
@@ -107,7 +120,7 @@ export async function sendConfirmationEmail(
 ): Promise<string | null> {
   const attachments = await Promise.all(
     input.tickets.map(async (t) => ({
-      filename: `ticket-${t.seatLabel}.pdf`,
+      filename: `ticket-${t.ticketId}.pdf`,
       content: await renderTicketPdf(t, input.event),
     })),
   );

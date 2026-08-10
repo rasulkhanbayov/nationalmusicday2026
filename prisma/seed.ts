@@ -7,17 +7,61 @@ const prisma = new PrismaClient();
 //
 // ── Editorial content for Music Day in Azerbaijan ──
 const MDA_ARTISTS = [
-  { name: "Aziz Panah", role: "Oboe", bio: "" },
-  { name: "Shams Agazade", role: "Violine", bio: "" },
-  { name: "Farid Ganbarli", role: "Kamancheh", bio: "" },
-  { name: "Nargiz Aliyeva", role: "Klavier", bio: "" },
+  {
+    name: "Aziz Panah",
+    role: "Oboe",
+    roleEn: "Oboe",
+    bio: "",
+    instagram: "https://www.instagram.com/azizpanah_",
+  },
+  {
+    name: "Shams Agazade",
+    role: "Violine",
+    roleEn: "Violin",
+    bio: "",
+    instagram: "https://www.instagram.com/shamsagazada",
+  },
+  {
+    name: "Farid Ganbarli",
+    role: "Kamancheh",
+    roleEn: "Kamancheh",
+    bio: "",
+    instagram: "https://www.instagram.com/faridganbarli",
+  },
+  {
+    name: "Nargiz Aliyeva",
+    role: "Klavier",
+    roleEn: "Piano",
+    bio: "",
+    instagram: "https://www.instagram.com/nara_pianistin_",
+  },
 ];
 
 // Ticket tiers. priceCents on the Event stays the entry-level price.
 const MDA_TIERS = [
-  { name: "Standard Ticket", priceCents: 2190, note: "Regulärer Eintritt" },
-  { name: "Support Ticket", priceCents: 2990, note: "Unterstützt das Projekt" },
+  {
+    name: "Standard Ticket",
+    nameEn: "Standard Ticket",
+    priceCents: 2190,
+    note: "Regulärer Eintritt",
+    noteEn: "Regular admission",
+  },
+  {
+    name: "Support Ticket",
+    nameEn: "Support Ticket",
+    priceCents: 2990,
+    note: "Unterstützt das Projekt",
+    noteEn: "Supports the project",
+  },
 ];
+
+const MDA_NOTICE = `Der Eintritt beinhaltet das Konzertprogramm sowie einen kleinen Empfang im Anschluss. Alkoholische Getränke werden nur an Personen ab 16 Jahren ausgegeben. Die Plätze sind begrenzt. Eine Rückerstattung ist nur im Falle einer Absage der Veranstaltung möglich.`;
+
+const MDA_NOTICE_EN = `Admission includes the concert programme and a small reception afterwards. Alcoholic drinks are served only to guests aged 16 and over. Places are limited. Refunds are possible only if the event is cancelled.`;
+
+const MDA_DESCRIPTION_EN = `On the occasion of Azerbaijan's National Music Day, we warmly invite you to a special evening of concert music. Discover the fascinating diversity of Azerbaijan – a country in the Caucasus where Europe and Asia meet, and where different cultural influences are reflected in music, art and tradition.
+Look forward to a varied programme featuring works by significant Azerbaijani composers alongside traditional folk melodies. The programme offers a musical insight into the culture of Azerbaijan – shaped by the traditions, the history and the many influences of the Caucasus.
+Let yourself be inspired by a unique world of sound, discover a musical culture that may still be unfamiliar, and experience an evening full of music, encounter and cultural exchange. We look forward to welcoming you to our concert!`;
 
 const MDA_DESCRIPTION = `Anlässlich des Aserbaidschanischen Nationalen Musiktages laden wir euch herzlich zu einem besonderen Konzertabend ein. Entdeckt die faszinierende Vielfalt Aserbaidschans – eines Landes im Kaukasus, in dem Europa und Asien aufeinandertreffen und sich unterschiedliche kulturelle Einflüsse in Musik, Kunst und Tradition widerspiegeln.
 Freut euch auf ein abwechslungsreiches Programm mit Werken bedeutender aserbaidschanischer Komponisten sowie traditionellen Volksmelodien. Das Programm vermittelt einen musikalischen Einblick in die Kultur Aserbaidschans – geprägt von den Traditionen, der Geschichte und den vielfältigen Einflüssen des Kaukasus.
@@ -49,24 +93,30 @@ async function main() {
       slug: "national-music-day-2026",
       status: EventStatus.PUBLISHED,
       name: "Music Day in Azerbaijan",
+      nameEn: "Music Day in Azerbaijan",
       subtitle:
         "Presented by Commontone · Aserbaidschanischer Nationaler Musiktag",
+      subtitleEn: "Presented by Commontone · Azerbaijan's National Music Day",
       type: "Classical Music Concert",
       description: MDA_DESCRIPTION,
+      descriptionEn: MDA_DESCRIPTION_EN,
+      notice: MDA_NOTICE,
+      noticeEn: MDA_NOTICE_EN,
       startsAt: new Date("2026-09-13T18:00:00+02:00"),
       endsAt: new Date("2026-09-13T21:00:00+02:00"),
-      doorsTime: "17:30",
-      venueName: "Einstein Kultur",
+      doorsTime: "17:00",
+      venueName: "Einstein Kultur — Halle 1 & 2",
       venueStreet: "Einsteinstraße 42",
       venuePostalCode: "81675",
       venueCity: "Munich",
       venueCountry: "Germany",
       venueCountryCode: "DE",
-      // Tickets are sold externally — replace with the real shop link.
+      // Tickets are sold on this site via Stripe (no external shop).
       ticketUrl: null,
       imageUrl: "/images/mugham-ensemble.jpeg",
       isFree: false,
       priceCents: 2190, // entry-level (Standard) price
+      capacity: 120, // total tickets on sale
       currency: "eur",
       rows: 12,
       seatsPerRow: 10,

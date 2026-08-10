@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus, Prisma } from "@prisma/client";
-import { compareSeatLabels } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +35,14 @@ export async function GET(req: NextRequest) {
   tickets.sort((a, b) => {
     if (a.event.name !== b.event.name)
       return a.event.name.localeCompare(b.event.name);
-    return compareSeatLabels(a.seat.label, b.seat.label);
+    return a.ticketId.localeCompare(b.ticketId);
   });
 
   const headers = [
     "Event",
     "Order Number",
     "Ticket ID",
+    "Ticket Type",
     "Seat",
     "First Name",
     "Last Name",
@@ -59,7 +59,8 @@ export async function GET(req: NextRequest) {
       t.event.name,
       t.order.orderNumber,
       t.ticketId,
-      t.seat.label,
+      t.tierName ?? "",
+      t.seat?.label ?? "",
       t.order.firstName,
       t.order.lastName,
       t.order.email,

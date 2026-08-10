@@ -1,3 +1,7 @@
+// Explicit React import: this module renders JSX outside the Next.js request
+// pipeline (react-pdf runs it directly), where the automatic JSX runtime is
+// not applied — without this, rendering fails with "React is not defined".
+import React from "react";
 import {
   Document,
   Page,
@@ -14,7 +18,8 @@ import type { EventView } from "./events";
 export type TicketData = {
   ticketId: string;
   orderNumber: string;
-  seatLabel: string;
+  /** Ticket type, e.g. "Standard Ticket". General admission — no seat. */
+  tierName: string;
   purchaserName: string;
 };
 
@@ -23,9 +28,11 @@ const GOLD = "#c9a14a";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 48,
-    paddingHorizontal: 48,
-    paddingBottom: 48,
+    // Tight padding so the whole ticket fits one A5 landscape page —
+    // any overflow pushes the footer onto a blank second page.
+    paddingTop: 24,
+    paddingHorizontal: 30,
+    paddingBottom: 24,
     fontSize: 11,
     color: NAVY,
     fontFamily: "Helvetica",
@@ -38,8 +45,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: NAVY,
-    paddingVertical: 22,
-    paddingHorizontal: 28,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
   eventName: {
     color: "#ffffff",
@@ -55,14 +62,15 @@ const styles = StyleSheet.create({
   },
   body: {
     flexDirection: "row",
-    padding: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 18,
   },
   details: {
     flex: 1,
     paddingRight: 20,
   },
   row: {
-    marginBottom: 12,
+    marginBottom: 9,
   },
   label: {
     fontSize: 8,
@@ -76,8 +84,8 @@ const styles = StyleSheet.create({
     color: NAVY,
     fontFamily: "Helvetica-Bold",
   },
-  seatBadge: {
-    fontSize: 30,
+  tierBadge: {
+    fontSize: 18,
     color: GOLD,
     fontFamily: "Times-Bold",
   },
@@ -100,8 +108,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e6e9f0",
     borderStyle: "dashed",
-    paddingHorizontal: 28,
-    paddingVertical: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 9,
     flexDirection: "row",
     justifyContent: "space-between",
   },
@@ -141,8 +149,11 @@ function TicketDocument({
           <View style={styles.body}>
             <View style={styles.details}>
               <View style={styles.row}>
-                <Text style={styles.label}>Seat</Text>
-                <Text style={styles.seatBadge}>{ticket.seatLabel}</Text>
+                <Text style={styles.label}>Admission</Text>
+                <Text style={styles.tierBadge}>{ticket.tierName}</Text>
+                <Text style={{ fontSize: 9, color: "#7a869c", marginTop: 2 }}>
+                  Open seating
+                </Text>
               </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Date</Text>
@@ -182,7 +193,7 @@ function TicketDocument({
   );
 }
 
-/** Renders a single seat's ticket to a PDF Buffer. */
+/** Renders one admission ticket to a PDF Buffer. */
 export async function renderTicketPdf(
   ticket: TicketData,
   event: EventView,

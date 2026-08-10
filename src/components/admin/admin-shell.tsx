@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, ScanLine, LogOut, Music, CalendarCog } from "lucide-react";
+import { LayoutDashboard, ScanLine, LogOut, CalendarCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +23,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/admin/dashboard" className="flex items-center gap-2">
-              <Music className="h-5 w-5 text-gold" />
-              <span className="font-serif font-semibold">
-                Commontone <span className="text-white/50">Admin</span>
+              <BrandLogo className="h-5 w-auto text-white" />
+              <span className="font-serif font-semibold text-white/50">
+                Admin
               </span>
             </Link>
             <nav className="hidden items-center gap-1 sm:flex">

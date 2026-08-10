@@ -1,36 +1,35 @@
+"use client";
+
 import Link from "next/link";
-import { Music } from "lucide-react";
 import { SITE } from "@/lib/constants";
+import { useLanguage } from "./language-provider";
+import { BrandLogo } from "./brand-logo";
 
 export function SiteFooter() {
+  const { t } = useLanguage();
   return (
     <footer className="border-t border-white/10 bg-navy-950 text-white/70">
       <div className="container grid gap-10 py-14 md:grid-cols-3">
         <div>
-          <div className="flex items-center gap-2 text-white">
-            <Music className="h-5 w-5 text-gold" />
-            <span className="font-serif text-lg font-semibold">
-              Common<span className="text-gold">tone</span>
-            </span>
-          </div>
+          <BrandLogo className="h-6 w-auto text-white" />
           <p className="mt-3 max-w-xs text-sm leading-relaxed">
-            {SITE.tagline}. Concerts and recitals in the heart of Germany.
+            {t.footer.tagline}.
           </p>
         </div>
 
         <div>
           <h4 className="mb-3 font-serif text-sm font-semibold uppercase tracking-wider text-gold">
-            Explore
+            {t.footer.explore}
           </h4>
           <ul className="space-y-2 text-sm">
             <li>
               <Link href="/" className="hover:text-gold">
-                Home
+                {t.nav.home}
               </Link>
             </li>
             <li>
               <Link href="/events" className="hover:text-gold">
-                All Events
+                {t.event.allEvents}
               </Link>
             </li>
           </ul>
@@ -38,7 +37,7 @@ export function SiteFooter() {
 
         <div>
           <h4 className="mb-3 font-serif text-sm font-semibold uppercase tracking-wider text-gold">
-            Contact
+            {t.footer.contact}
           </h4>
           <ul className="space-y-2 text-sm">
             <li>
@@ -54,7 +53,7 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="container flex flex-col items-center justify-between gap-2 py-6 text-xs text-white/50 sm:flex-row">
           <p>
-            © {new Date().getFullYear()} {SITE.organizer}. All rights reserved.
+            © {new Date().getFullYear()} {SITE.organizer}. {t.footer.rights}
           </p>
           <p>{SITE.domain}</p>
         </div>
