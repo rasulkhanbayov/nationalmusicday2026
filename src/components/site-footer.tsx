@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Instagram } from "lucide-react";
 import { SITE } from "@/lib/constants";
 import { useLanguage } from "./language-provider";
 import { BrandLogo } from "./brand-logo";
@@ -43,6 +44,17 @@ export function SiteFooter() {
             <li>
               <a href={`mailto:${SITE.contactEmail}`} className="hover:text-gold">
                 {SITE.contactEmail}
+              </a>
+            </li>
+            <li>
+              <a
+                href={SITE.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-gold"
+              >
+                <Instagram className="h-4 w-4" />
+                {SITE.instagramHandle}
               </a>
             </li>
             <li>{SITE.domain}</li>

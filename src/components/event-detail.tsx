@@ -207,7 +207,7 @@ function Hero({
               ? `${t.events.from} ${price(entryPriceCents(event))}`
               : `${price(event.priceCents)} ${t.event.perTicket}`}{" "}
           · {t.event.doors} {event.doorsTime ?? event.startTime} ·{" "}
-          {event.venue.name}
+          {content(event.venue.name, event.venue.nameEn)}
         </p>
       </div>
     </section>
@@ -215,7 +215,7 @@ function Hero({
 }
 
 function QuickFacts({ event }: { event: EventView }) {
-  const { t, dateLong } = useLanguage();
+  const { t, dateLong, content } = useLanguage();
   const timing = event.doorsTime
     ? `${t.event.doors} ${event.doorsTime} · ${t.event.start} ${event.startTime}`
     : `${t.event.start} ${event.startTime}`;
@@ -225,7 +225,7 @@ function QuickFacts({ event }: { event: EventView }) {
     {
       icon: MapPin,
       label: t.event.venue,
-      value: `${event.venue.name}, ${event.venue.city}`,
+      value: `${content(event.venue.name, event.venue.nameEn)}, ${event.venue.city}`,
     },
   ];
   return (
@@ -421,10 +421,11 @@ function Program({ event }: { event: EventView }) {
 }
 
 function Venue({ event }: { event: EventView }) {
-  const { t } = useLanguage();
+  const { t, content } = useLanguage();
+  const venueName = content(event.venue.name, event.venue.nameEn);
   // Drop any hall/room suffix (e.g. "— Halle 1 & 2") before geocoding: Google
   // finds the building, not the room, and the extra text breaks the lookup.
-  const mapsVenue = event.venue.name.split(/\s+[—–-]\s+/)[0];
+  const mapsVenue = venueName.split(/\s+[—–-]\s+/)[0];
   const mapsQuery = encodeURIComponent(
     `${mapsVenue}, ${event.venue.street}, ${event.venue.postalCode} ${event.venue.city}`,
   );
@@ -434,10 +435,10 @@ function Venue({ event }: { event: EventView }) {
         <div className="flex flex-col justify-center">
           <span className="section-eyebrow">{t.event.venueEyebrow}</span>
           <h2 className="text-3xl font-bold text-navy-900 sm:text-4xl">
-            {event.venue.name}
+            {venueName}
           </h2>
           <div className="mt-6 space-y-1 text-navy-800">
-            <p className="font-medium">{event.venue.name}</p>
+            <p className="font-medium">{venueName}</p>
             <p>{event.venue.street}</p>
             <p>
               {event.venue.postalCode} {event.venue.city}, {event.venue.country}
@@ -457,7 +458,7 @@ function Venue({ event }: { event: EventView }) {
         </div>
         <div className="min-h-[320px] overflow-hidden rounded-2xl border border-border shadow-sm">
           <iframe
-            title={`Map to ${event.venue.name}`}
+            title={`Map to ${venueName}`}
             className="h-full min-h-[320px] w-full"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

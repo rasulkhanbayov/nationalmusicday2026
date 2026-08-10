@@ -58,6 +58,7 @@ export type EventView = {
   endTimeISO: string | null;
   venue: {
     name: string;
+    nameEn: string | null;
     street: string;
     postalCode: string;
     city: string;
@@ -131,6 +132,7 @@ export function toEventView(e: Event): EventView {
     endTimeISO: e.endsAt ? e.endsAt.toISOString() : null,
     venue: {
       name: e.venueName,
+      nameEn: e.venueNameEn,
       street: e.venueStreet,
       postalCode: e.venuePostalCode,
       city: e.venueCity,

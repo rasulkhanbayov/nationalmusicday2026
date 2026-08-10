@@ -2,19 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Ticket, Armchair, Euro, UserCheck, Pencil } from "lucide-react";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { SeatMap } from "@/components/seat-map";
 import { EventSelector } from "@/components/admin/event-selector";
 import { ResendButton, ExportButton } from "@/components/admin/order-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
+import { parseItems } from "@/lib/orders";
 import { OrderStatus } from "@prisma/client";
 import { getDashboardStats } from "@/lib/stats";
-import { getSeatMap } from "@/lib/seats";
 import { listAllEvents, rowLetters } from "@/lib/events";
 import { formatEuros, priceLabel } from "@/lib/config";
-import { compareSeatLabels } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +40,11 @@ export default async function DashboardPage({
   const active =
     events.find((e) => e.id === eventParam) ?? events[0];
 
-  const [stats, seats, orders] = await Promise.all([
+  const [stats, orders] = await Promise.all([
     getDashboardStats(active.id),
-    getSeatMap(active.id),
     prisma.order.findMany({
       where: { eventId: active.id, status: OrderStatus.PAID },
-      include: { seats: true, tickets: true },
+      include: { tickets: true },
       orderBy: { paidAt: "desc" },
     }),
   ]);
@@ -56,13 +53,16 @@ export default async function DashboardPage({
     {
       label: "Tickets Sold",
       value: stats.ticketsSold,
-      sub: `of ${stats.totalSeats}`,
+      sub: stats.capacity === null ? "no limit" : `of ${stats.capacity}`,
       icon: Ticket,
     },
     {
       label: "Tickets Remaining",
-      value: stats.ticketsRemaining,
-      sub: `${stats.totalSeats ? Math.round((stats.ticketsRemaining / stats.totalSeats) * 100) : 0}% free`,
+      value: stats.ticketsRemaining ?? "—",
+      sub:
+        stats.capacity === null
+          ? "unlimited"
+          : `${Math.round((stats.ticketsRemaining! / stats.capacity) * 100)}% available`,
       icon: Armchair,
     },
     {
@@ -149,7 +149,7 @@ export default async function DashboardPage({
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="py-2 pr-3 font-medium">Order</th>
                       <th className="py-2 pr-3 font-medium">Name</th>
-                      <th className="py-2 pr-3 font-medium">Seats</th>
+                      <th className="py-2 pr-3 font-medium">Tickets</th>
                       <th className="py-2 pr-3 font-medium">Total</th>
                       <th className="py-2 pr-3 font-medium">Check-in</th>
                       <th className="py-2 font-medium"></th>
@@ -157,9 +157,9 @@ export default async function DashboardPage({
                   </thead>
                   <tbody>
                     {orders.map((o) => {
-                      const oseats = o.seats
-                        .map((s) => s.label)
-                        .sort(compareSeatLabels)
+                      const oitems = parseItems(o.itemsJson)
+                        .filter((i) => i.quantity > 0)
+                        .map((i) => `${i.quantity} × ${i.tier}`)
                         .join(", ");
                       const checked = o.tickets.filter(
                         (t) => t.checkedIn,
@@ -181,7 +181,7 @@ export default async function DashboardPage({
                             </div>
                           </td>
                           <td className="py-3 pr-3 text-muted-foreground">
-                            {oseats}
+                            {oitems}
                           </td>
                           <td className="py-3 pr-3 font-medium">
                             {o.isFree ? "Free" : formatEuros(o.totalCents)}
@@ -212,20 +212,6 @@ export default async function DashboardPage({
           </CardContent>
         </Card>
 
-        {/* Seat overview */}
-        <Card className="lg:sticky lg:top-8 lg:self-start">
-          <CardContent className="pt-6">
-            <h2 className="mb-4 font-serif text-xl font-semibold text-navy-900">
-              Seat Overview
-            </h2>
-            <SeatMap
-              seats={seats}
-              rows={rowLetters(active.rows)}
-              seatsPerRow={active.seatsPerRow}
-              readOnly
-            />
-          </CardContent>
-        </Card>
       </div>
     </AdminShell>
   );

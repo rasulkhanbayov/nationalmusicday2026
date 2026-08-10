@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 // Seeds Commontone's initial event catalogue. Commontone is the organizing
 // company; each event below is one production it presents.
 //
-// ── Editorial content for Music Day in Azerbaijan ──
+// ── Editorial content for Azerbaijani National Music Day ──
 const MDA_ARTISTS = [
   {
     name: "Aziz Panah",
@@ -92,8 +92,8 @@ async function main() {
     create: {
       slug: "national-music-day-2026",
       status: EventStatus.PUBLISHED,
-      name: "Music Day in Azerbaijan",
-      nameEn: "Music Day in Azerbaijan",
+      name: "Azerbaijani National Music Day",
+      nameEn: "Azerbaijani National Music Day",
       subtitle:
         "Presented by Commontone · Aserbaidschanischer Nationaler Musiktag",
       subtitleEn: "Presented by Commontone · Azerbaijan's National Music Day",
@@ -106,6 +106,7 @@ async function main() {
       endsAt: new Date("2026-09-13T21:00:00+02:00"),
       doorsTime: "17:00",
       venueName: "Einstein Kultur — Halle 1 & 2",
+      venueNameEn: "Einstein Kultur — Hall 1 & 2",
       venueStreet: "Einsteinstraße 42",
       venuePostalCode: "81675",
       venueCity: "Munich",

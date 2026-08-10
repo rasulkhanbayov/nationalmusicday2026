@@ -45,6 +45,7 @@ model Event {
 
   // Venue (denormalized per event)
   venueName       String
+  venueNameEn     String? // English venue name, e.g. "… Hall 1 & 2"
   venueStreet     String
   venuePostalCode String
   venueCity       String

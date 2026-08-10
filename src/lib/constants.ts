@@ -20,6 +20,8 @@ export const SITE = {
   domain: "commontone.de",
   organizer: "Commontone",
   contactEmail: "info@commontone.de",
+  instagram: "https://www.instagram.com/commontone.de/",
+  instagramHandle: "@commontone.de",
   tagline: "Cultural events across Germany",
 } as const;
 

@@ -134,7 +134,7 @@ function TicketDocument({
   return (
     <Document
       title={`Ticket ${ticket.ticketId}`}
-      author={SITE.organizer}
+      author="commontone"
       subject={event.name}
     >
       <Page size="A5" orientation="landscape" style={styles.page}>

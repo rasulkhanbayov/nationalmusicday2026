@@ -57,7 +57,10 @@ function buildHtml(input: ConfirmationEmailInput): string {
       <tr><td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e6e9f0;">
           <tr>
-            <td style="background:${navy};padding:36px 40px;">
+            <td style="background:${navy};padding:28px 40px 32px;">
+              <!-- Wordmark drawn with styled text rather than an image: most
+                   email clients block remote images and do not render SVG. -->
+              <p style="margin:0 0 18px;font-family:Helvetica,Arial,sans-serif;font-size:22px;font-weight:bold;letter-spacing:-0.5px;color:#ffffff;">common<span style="color:${gold};">tone</span></p>
               <h1 style="margin:0;color:#ffffff;font-family:Georgia,serif;font-size:26px;">${event.name}</h1>
               ${event.subtitle ? `<p style="margin:6px 0 0;color:${gold};font-style:italic;font-size:14px;">${event.subtitle}</p>` : ""}
             </td>
@@ -98,9 +101,14 @@ function buildHtml(input: ConfirmationEmailInput): string {
           </tr>
           <tr>
             <td style="background:#f8f9fc;padding:20px 40px;border-top:1px solid #e6e9f0;">
-              <p style="margin:0;font-size:12px;color:#7a869c;">
-                ${event.name} · ${event.venue.name}, ${event.venue.city}<br/>
+              <p style="margin:0 0 8px;font-size:12px;color:#7a869c;">
+                <strong style="color:#33405c;">commontone</strong> · ${event.name}<br/>
+                ${event.venue.name}, ${event.venue.city}<br/>
                 Questions? Reply to this email or contact ${contact}.
+              </p>
+              <p style="margin:0;font-size:12px;color:#7a869c;">
+                Follow us on
+                <a href="${SITE.instagram}" style="color:${gold};text-decoration:none;font-weight:bold;">Instagram ${SITE.instagramHandle}</a>
               </p>
             </td>
           </tr>

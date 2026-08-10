@@ -80,7 +80,7 @@ npm run db:seed           # creates the starter events + their seats
 > No local Postgres? Use a free hosted DB (Neon, Supabase, Railway) and paste
 > its connection string into `DATABASE_URL`.
 
-The seed creates one Commontone event — *Music Day in Azerbaijan* — with two
+The seed creates one Commontone event — *Azerbaijani National Music Day* — with two
 ticket types (Standard €21.90 / Support €29.90) and the admission notice in
 German and English. The seed is idempotent, so re-running never clobbers edits
 made in the admin.

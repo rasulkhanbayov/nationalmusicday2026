@@ -66,7 +66,9 @@ export default async function AdminEventsPage() {
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {event.dateLong} · {event.venue.city} ·{" "}
-                  {stats.ticketsSold}/{stats.totalSeats} seats sold
+                  {stats.ticketsSold}
+                  {stats.capacity === null ? "" : `/${stats.capacity}`} tickets
+                  sold
                 </p>
               </div>
               <div className="flex items-center gap-2">
