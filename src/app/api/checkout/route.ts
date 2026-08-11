@@ -6,6 +6,7 @@ import { stripe } from "@/lib/stripe";
 import { siteUrl, MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { EventStatus } from "@prisma/client";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,16 @@ export const dynamic = "force-dynamic";
  * only issued once Stripe confirms payment (see /api/webhooks/stripe).
  */
 export async function POST(req: NextRequest) {
+  // Throttle: creating an order burns an order number and writes a row, so an
+  // unthrottled endpoint lets a bot flood the table and inflate the counter.
+  const limit = rateLimit(`checkout:${clientIp(req.headers)}`, 8, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let parsed;
   try {
     parsed = checkoutSchema.parse(await req.json());

@@ -21,24 +21,24 @@ export const metadata: Metadata = {
 
 type LoadedOrder = NonNullable<Awaited<ReturnType<typeof fetchOrder>>>;
 
-async function fetchOrder(sessionId?: string, orderNumber?: string) {
-  if (sessionId) {
-    return prisma.order.findUnique({
-      where: { stripeSessionId: sessionId },
-      include: { event: true },
-    });
-  }
-  if (orderNumber) {
-    return prisma.order.findUnique({
-      where: { orderNumber },
-      include: { event: true },
-    });
-  }
-  return null;
+/**
+ * Looks up an order by its Stripe Checkout session id only.
+ *
+ * Deliberately NOT by order number: order numbers are short and sequential
+ * (NM2026-000001, -000002, …), so accepting one here would let anyone
+ * enumerate every buyer's name and email address. The session id is a long
+ * unguessable Stripe token that only the purchaser receives on redirect.
+ */
+async function fetchOrder(sessionId?: string) {
+  if (!sessionId) return null;
+  return prisma.order.findUnique({
+    where: { stripeSessionId: sessionId },
+    include: { event: true },
+  });
 }
 
-async function loadOrder(sessionId?: string, orderNumber?: string) {
-  let order = await fetchOrder(sessionId, orderNumber);
+async function loadOrder(sessionId?: string) {
+  let order = await fetchOrder(sessionId);
   if (!order) return null;
 
   // Paid fallback fulfillment in case the webhook is delayed.
@@ -53,7 +53,7 @@ async function loadOrder(sessionId?: string, orderNumber?: string) {
               ? session.payment_intent
               : null,
         });
-        order = await fetchOrder(sessionId, orderNumber);
+        order = await fetchOrder(sessionId);
       }
     } catch {
       // Ignore — show pending state below.
@@ -65,12 +65,12 @@ async function loadOrder(sessionId?: string, orderNumber?: string) {
 export default async function SuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ session_id?: string; order?: string }>;
+  searchParams: Promise<{ session_id?: string }>;
 }) {
-  const { session_id, order: orderParam } = await searchParams;
+  const { session_id } = await searchParams;
   const order =
-    session_id || orderParam
-      ? await loadOrder(session_id, orderParam)
+    session_id
+      ? await loadOrder(session_id)
       : null;
 
   return (
@@ -157,6 +157,13 @@ function Confirmation({ order }: { order: LoadedOrder }) {
         <p className="mt-6 text-sm text-muted-foreground">
           Your PDF tickets (with QR codes) have been emailed to you. Please bring
           them to the entrance.
+        </p>
+
+        <p className="mt-4 rounded-lg bg-amber-50 p-4 text-left text-sm leading-relaxed text-amber-900">
+          <strong>Can&apos;t find the email?</strong> Please check your spam or
+          junk folder, and mark it as &ldquo;not spam&rdquo; so future messages
+          reach your inbox. Still nothing after a few minutes? Contact us and
+          we&apos;ll resend your tickets.
         </p>
 
         {event.notice ? (

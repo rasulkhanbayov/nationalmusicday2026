@@ -44,6 +44,7 @@ export function EventDetail({
       {event.artists.length > 0 ? <Artists event={event} /> : null}
       {canBuy ? <Tickets event={event} /> : null}
       {event.program.length > 0 ? <Program event={event} /> : null}
+      <Poster event={event} />
       <Heritage />
       <Venue event={event} />
       <TicketCta event={event} soldOut={soldOut} isPast={isPast} />
@@ -464,6 +465,53 @@ function Venue({ event }: { event: EventView }) {
             referrerPolicy="no-referrer-when-downgrade"
             src={`https://maps.google.com/maps?q=${mapsQuery}&output=embed`}
           />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The event poster, shown whole rather than cropped. Portrait print artwork,
+ * so it is width-capped and centred; clicking opens the full-resolution file
+ * in a new tab for anyone who wants to print or share it.
+ */
+function Poster({ event }: { event: EventView }) {
+  const { t } = useLanguage();
+  if (!event.posterUrl) return null;
+  return (
+    <section className="bg-white py-24">
+      <div className="container">
+        <SectionHeading
+          eyebrow={t.event.posterEyebrow}
+          title={t.event.posterTitle}
+        />
+        <div className="mx-auto max-w-[520px]">
+          <a
+            href={event.posterUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block overflow-hidden rounded-2xl border border-border shadow-sm transition-shadow hover:shadow-xl"
+          >
+            <Image
+              src={event.posterUrl}
+              alt={`${event.name} — event poster`}
+              width={1448}
+              height={2048}
+              sizes="(min-width: 640px) 520px, 100vw"
+              className="h-auto w-full transition-transform duration-500 group-hover:scale-[1.02]"
+            />
+          </a>
+          <p className="mt-4 text-center">
+            <a
+              href={event.posterUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-navy-800 hover:text-gold"
+            >
+              {t.event.posterView} <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </p>
         </div>
       </div>
     </section>

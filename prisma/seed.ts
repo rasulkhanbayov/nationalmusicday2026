@@ -43,15 +43,17 @@ const MDA_TIERS = [
     name: "Standard Ticket",
     nameEn: "Standard Ticket",
     priceCents: 2190,
-    note: "Regulärer Eintritt",
-    noteEn: "Regular admission",
+    note: "Regulärer Eintritt zum gesamten Konzert.",
+    noteEn: "Regular admission to the full concert.",
   },
   {
     name: "Support Ticket",
     nameEn: "Support Ticket",
     priceCents: 2990,
-    note: "Unterstützt das Projekt",
-    noteEn: "Supports the project",
+    note:
+      "Gleicher Eintritt wie beim Standard-Ticket — mit dem Aufpreis unterstützt ihr zusätzlich unsere Veranstaltung.",
+    noteEn:
+      "The same admission as the Standard Ticket — the difference additionally supports our event",
   },
 ];
 
@@ -95,8 +97,8 @@ async function main() {
       name: "Azerbaijani National Music Day",
       nameEn: "Azerbaijani National Music Day",
       subtitle:
-        "Presented by Commontone · Aserbaidschanischer Nationaler Musiktag",
-      subtitleEn: "Presented by Commontone · Azerbaijan's National Music Day",
+        "Presented by commontone · Aserbaidschanischer Nationaler Musiktag",
+      subtitleEn: "Presented by commontone · Azerbaijan's National Music Day",
       type: "Classical Music Concert",
       description: MDA_DESCRIPTION,
       descriptionEn: MDA_DESCRIPTION_EN,
@@ -115,6 +117,7 @@ async function main() {
       // Tickets are sold on this site via Stripe (no external shop).
       ticketUrl: null,
       imageUrl: "/images/mugham-ensemble.jpeg",
+      posterUrl: "/images/poster.jpeg",
       isFree: false,
       priceCents: 2190, // entry-level (Standard) price
       capacity: 120, // total tickets on sale

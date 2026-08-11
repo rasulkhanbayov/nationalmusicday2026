@@ -65,6 +65,7 @@ export const eventSchema = z.object({
   // Hero/card artwork: a path under /public (e.g. "/images/foo.jpeg") or a
   // full URL. Empty falls back to the plain navy gradient.
   imageUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  posterUrl: z.string().trim().max(500).optional().or(z.literal("")),
   isFree: z.boolean(),
   // Euros as a number from the form; ignored when isFree.
   priceEuros: z.number().min(0).max(100000),

@@ -29,8 +29,10 @@ export function TicketPurchase({ event }: { event: EventView }) {
     [event.tiers, event.priceCents],
   );
 
+  // Every tier starts at zero so the buyer makes a deliberate choice rather
+  // than being nudged toward a pre-selected ticket type.
   const [qty, setQty] = useState<Record<string, number>>(() =>
-    Object.fromEntries(tiers.map((x, i) => [x.name, i === 0 ? 1 : 0])),
+    Object.fromEntries(tiers.map((x) => [x.name, 0])),
   );
   const [form, setForm] = useState({
     firstName: "",
@@ -249,6 +251,9 @@ export function TicketPurchase({ event }: { event: EventView }) {
       </div>
       <p className="mt-3 text-center text-xs text-muted-foreground">
         {t.checkout.securedByStripe}
+      </p>
+      <p className="mx-auto mt-2 max-w-xl text-center text-xs leading-relaxed text-muted-foreground">
+        {t.checkout.spamNotice}
       </p>
     </form>
   );

@@ -89,6 +89,7 @@ export async function PUT(
         venueCountry: input.venueCountry || "Germany",
         ticketUrl: input.ticketUrl || null,
         imageUrl: input.imageUrl || null,
+        posterUrl: input.posterUrl || null,
         isFree: input.isFree,
         priceCents: input.isFree ? 0 : Math.round(input.priceEuros * 100),
         capacity: input.capacity && input.capacity > 0 ? input.capacity : null,

@@ -8,6 +8,7 @@ import {
   Camera,
   CameraOff,
   Loader2,
+  ScanLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,8 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
   const [manual, setManual] = useState("");
   const [eventId, setEventId] = useState<string>(events[0]?.id ?? "");
   const [result, setResult] = useState<Result | null>(null);
+  // True while a result is on screen and the camera feed is frozen.
+  const [paused, setPaused] = useState(false);
   const scannerRef = useRef<import("html5-qrcode").Html5Qrcode | null>(null);
   // Debounce so a held-up QR isn't validated dozens of times per second.
   const lastScanRef = useRef<{ text: string; at: number }>({ text: "", at: 0 });
@@ -82,6 +85,18 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
     }
   }, []);
 
+  /** Clears the current result and re-arms the camera for the next guest. */
+  const scanNext = useCallback(() => {
+    setResult(null);
+    lastScanRef.current = { text: "", at: 0 };
+    setPaused(false);
+    try {
+      scannerRef.current?.resume();
+    } catch {
+      /* if resume fails the operator can restart the camera */
+    }
+  }, []);
+
   const stopScanner = useCallback(async () => {
     const s = scannerRef.current;
     if (s) {
@@ -94,10 +109,13 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
       scannerRef.current = null;
     }
     setScanning(false);
+    setPaused(false);
   }, []);
 
   const startScanner = useCallback(async () => {
     setResult(null);
+    setPaused(false);
+    lastScanRef.current = { text: "", at: 0 };
     const { Html5Qrcode } = await import("html5-qrcode");
     const scanner = new Html5Qrcode(SCANNER_ID);
     scannerRef.current = scanner;
@@ -112,9 +130,18 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
             decoded === lastScanRef.current.text &&
             now - lastScanRef.current.at < 3000
           ) {
-            return; // debounce duplicate reads
+            return; // debounce duplicate reads within one burst
           }
           lastScanRef.current = { text: decoded, at: now };
+          // Freeze the feed immediately: at 10fps the same ticket would
+          // otherwise be decoded again and reported as already used while
+          // it is still in front of the camera.
+          try {
+            scannerRef.current?.pause(true);
+          } catch {
+            /* pause is best-effort */
+          }
+          setPaused(true);
           validate(decoded);
         },
         () => {
@@ -189,11 +216,22 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
               className="flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
+                // Freeze the camera too, so a stray scan can't overwrite the
+                // result the operator just looked up by hand.
+                if (scannerRef.current) {
+                  try {
+                    scannerRef.current.pause(true);
+                  } catch {
+                    /* pause is best-effort */
+                  }
+                  setPaused(true);
+                }
                 validate(manual);
+                setManual("");
               }}
             >
               <Input
-                placeholder="NM2026-000123-A5"
+                placeholder="NM2026-000123-01"
                 value={manual}
                 onChange={(e) => setManual(e.target.value)}
               />
@@ -207,8 +245,15 @@ export function TicketScanner({ events }: { events: ScanEvent[] }) {
 
       {/* Result panel */}
       <Card>
-        <CardContent className="flex min-h-[300px] items-center justify-center pt-6">
+        <CardContent className="flex min-h-[300px] flex-col items-center justify-center gap-6 pt-6">
           <ResultView result={result} busy={busy} />
+          {/* The camera freezes on a result so the same ticket can't be read
+              twice; this re-arms it for the next guest. */}
+          {paused && result && !busy ? (
+            <Button variant="gold" size="lg" onClick={scanNext}>
+              <ScanLine /> Scan next guest
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
     </div>

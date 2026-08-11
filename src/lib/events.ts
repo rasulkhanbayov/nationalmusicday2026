@@ -67,6 +67,7 @@ export type EventView = {
   };
   contactEmail: string | null;
   imageUrl: string | null;
+  posterUrl: string | null;
   artists: Artist[];
   program: ProgramBlock[];
   tiers: Tier[];
@@ -141,6 +142,7 @@ export function toEventView(e: Event): EventView {
     },
     contactEmail: e.contactEmail,
     imageUrl: e.imageUrl,
+    posterUrl: e.posterUrl,
     artists: parseJson<Artist[]>(e.artistsJson, []),
     program: parseJson<ProgramBlock[]>(e.programJson, []),
     tiers: parseJson<Tier[]>(e.tiersJson, []),

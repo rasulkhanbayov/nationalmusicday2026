@@ -31,6 +31,7 @@ export type EventFormValues = {
   venueCountry: string;
   ticketUrl: string;
   imageUrl: string;
+  posterUrl: string;
   isFree: boolean;
   priceEuros: string;
   capacity: string;
@@ -62,6 +63,7 @@ export const emptyEvent: EventFormValues = {
   venueCountry: "Germany",
   ticketUrl: "",
   imageUrl: "",
+  posterUrl: "",
   isFree: false,
   priceEuros: "25",
   capacity: "",
@@ -123,6 +125,7 @@ export function EventForm({
       venueCountry: v.venueCountry,
       ticketUrl: v.ticketUrl.trim(),
       imageUrl: v.imageUrl.trim(),
+      posterUrl: v.posterUrl.trim(),
       isFree: v.isFree,
       priceEuros: v.isFree ? 0 : parseFloat(v.priceEuros) || 0,
       capacity: parseInt(v.capacity, 10) || 0,
@@ -391,6 +394,18 @@ export function EventForm({
               <code className="mx-1 rounded bg-muted px-1">public/</code>
               (e.g. <code>/images/name.jpeg</code>) or a full URL. Leave empty
               for a plain navy background.
+            </p>
+          </Field>
+
+          <Field label="Event poster">
+            <Input
+              placeholder="/images/poster.jpeg"
+              value={v.posterUrl}
+              onChange={(e) => set("posterUrl", e.target.value)}
+            />
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Portrait poster shown in its own section on the event page.
+              Leave empty to hide that section.
             </p>
           </Field>
 

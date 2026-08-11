@@ -16,9 +16,9 @@ export const MAX_TICKETS_PER_ORDER = 10;
 // presents every event in this catalogue — individual event names (and their
 // venues, artists and programmes) live on the Event rows themselves.
 export const SITE = {
-  name: "Commontone",
+  name: "commontone",
   domain: "commontone.de",
-  organizer: "Commontone",
+  organizer: "commontone",
   contactEmail: "info@commontone.de",
   instagram: "https://www.instagram.com/commontone.de/",
   instagramHandle: "@commontone.de",

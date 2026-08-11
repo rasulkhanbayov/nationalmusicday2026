@@ -79,6 +79,10 @@ model Event {
   // Hero/card artwork for this event (path under /public, or an absolute URL).
   imageUrl String?
 
+  // Full event poster (portrait). Shown as its own section on the event page
+  // and opens full size in a new tab.
+  posterUrl String?
+
   // Editorial JSON blobs (artists, program, ticket tiers) — kept flexible.
   artistsJson String? // JSON: [{ name, role, bio }]
   programJson String? // JSON: [{ part, pieces: [{ composer, title }] }]

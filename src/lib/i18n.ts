@@ -62,6 +62,9 @@ type Dict = {
     perTicket: string;
     caption: string;
     supporter: string;
+    posterEyebrow: string;
+    posterTitle: string;
+    posterView: string;
     // CTA labels
     buyTickets: string;
     reserveFree: string;
@@ -92,6 +95,7 @@ type Dict = {
     payNow: string;
     redirecting: string;
     securedByStripe: string;
+    spamNotice: string;
     pickOne: string;
     failed: string;
     network: string;
@@ -117,14 +121,14 @@ const en: Dict = {
   },
   home: {
     heroLead:
-      "Concerts and recitals in the heart of Germany, presented by Commontone. Browse upcoming events and reserve your seat.",
+      "Concerts and recitals in the heart of Germany, presented by commontone. Browse upcoming events and reserve your seat.",
     upcoming: "Upcoming Events",
-    upcomingSub: "Concerts and recitals presented by Commontone.",
+    upcomingSub: "Concerts and recitals presented by commontone.",
     noEvents: "No events are on sale right now. Please check back soon.",
   },
   events: {
     title: "Events",
-    subtitle: "Concerts and recitals presented by Commontone.",
+    subtitle: "Concerts and recitals presented by commontone.",
     details: "Details",
     ticketsAvailable: "Tickets available",
     comingSoon: "Coming soon",
@@ -161,6 +165,9 @@ const en: Dict = {
     perTicket: "per ticket",
     caption: "Performers — the living roots of the evening's programme.",
     supporter: "Supporter",
+    posterEyebrow: "Poster",
+    posterTitle: "An Evening of Music & Culture",
+    posterView: "View full size",
     buyTickets: "Buy Tickets",
     reserveFree: "Reserve Your Free Place",
     comingSoon: "Tickets Coming Soon",
@@ -193,6 +200,8 @@ const en: Dict = {
     payNow: "Continue to payment",
     redirecting: "Redirecting…",
     securedByStripe: "Payments are processed securely by Stripe.",
+    spamNotice:
+      "Your tickets arrive by email within a few minutes. If you don't see them, please check your spam or junk folder — and mark the message as “not spam” so future emails reach your inbox.",
     pickOne: "Please select at least one ticket.",
     failed: "Checkout could not be started",
     network: "Network error — please try again.",
@@ -224,15 +233,15 @@ const de: Dict = {
   },
   home: {
     heroLead:
-      "Konzerte und Recitals im Herzen Deutschlands, präsentiert von Commontone. Entdeckt kommende Veranstaltungen und sichert euch euren Platz.",
+      "Konzerte und Recitals im Herzen Deutschlands, präsentiert von commontone. Entdeckt kommende Veranstaltungen und sichert euch euren Platz.",
     upcoming: "Kommende Veranstaltungen",
-    upcomingSub: "Konzerte und Recitals, präsentiert von Commontone.",
+    upcomingSub: "Konzerte und Recitals, präsentiert von commontone.",
     noEvents:
       "Derzeit sind keine Veranstaltungen im Verkauf. Schaut bald wieder vorbei.",
   },
   events: {
     title: "Veranstaltungen",
-    subtitle: "Konzerte und Recitals, präsentiert von Commontone.",
+    subtitle: "Konzerte und Recitals, präsentiert von commontone.",
     details: "Details",
     ticketsAvailable: "Tickets verfügbar",
     comingSoon: "Demnächst",
@@ -269,6 +278,9 @@ const de: Dict = {
     perTicket: "pro Ticket",
     caption: "Musiker — die lebendigen Wurzeln des Programms.",
     supporter: "Unterstützer",
+    posterEyebrow: "Plakat",
+    posterTitle: "Ein Abend voller Musik & Kultur",
+    posterView: "In voller Größe ansehen",
     buyTickets: "Tickets kaufen",
     reserveFree: "Kostenlos reservieren",
     comingSoon: "Tickets bald verfügbar",
@@ -301,6 +313,8 @@ const de: Dict = {
     payNow: "Weiter zur Zahlung",
     redirecting: "Weiterleitung…",
     securedByStripe: "Die Zahlung wird sicher über Stripe abgewickelt.",
+    spamNotice:
+      "Eure Tickets kommen innerhalb weniger Minuten per E-Mail. Falls ihr sie nicht findet, schaut bitte im Spam- oder Junk-Ordner nach und markiert die Nachricht als „kein Spam“, damit künftige E-Mails im Posteingang landen.",
     pickOne: "Bitte wählt mindestens ein Ticket aus.",
     failed: "Bezahlvorgang konnte nicht gestartet werden",
     network: "Netzwerkfehler — bitte erneut versuchen.",

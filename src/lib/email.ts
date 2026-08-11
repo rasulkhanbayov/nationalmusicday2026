@@ -102,6 +102,10 @@ function buildHtml(input: ConfirmationEmailInput): string {
           <tr>
             <td style="background:#f8f9fc;padding:20px 40px;border-top:1px solid #e6e9f0;">
               <p style="margin:0 0 8px;font-size:12px;color:#7a869c;">
+                Found this in spam? Marking it as &ldquo;not spam&rdquo; helps
+                our future emails reach you.
+              </p>
+              <p style="margin:0 0 8px;font-size:12px;color:#7a869c;">
                 <strong style="color:#33405c;">commontone</strong> · ${event.name}<br/>
                 ${event.venue.name}, ${event.venue.city}<br/>
                 Questions? Reply to this email or contact ${contact}.
@@ -117,6 +121,47 @@ function buildHtml(input: ConfirmationEmailInput): string {
     </table>
   </body>
 </html>`;
+}
+
+/**
+ * Plain-text alternative to the HTML body.
+ *
+ * Sending a multipart message (text + HTML) rather than HTML alone is one of
+ * the simplest deliverability wins: HTML-only mail with attachments is a
+ * common spam heuristic, and some clients render the text part directly.
+ */
+function buildText(input: ConfirmationEmailInput): string {
+  const { event } = input;
+  const contact = event.contactEmail || SITE.contactEmail;
+  const lines = input.items
+    .filter((i) => i.quantity > 0)
+    .map((i) => `  ${i.quantity} x ${i.tier} — ${formatEuros(i.priceCents * i.quantity)}`);
+  const doors = event.doorsTime ? ` · Doors ${event.doorsTime}` : "";
+
+  return [
+    `Dear ${input.purchaserName},`,
+    "",
+    input.isFree
+      ? `Your reservation for ${event.name} is confirmed.`
+      : `Thank you for your purchase. Your tickets for ${event.name} are confirmed.`,
+    "",
+    `Order: ${input.orderNumber}`,
+    `Date:  ${event.dateLong} · Start ${event.startTime}${doors}`,
+    `Venue: ${event.venue.name}, ${event.venue.street}, ${event.venue.postalCode} ${event.venue.city}`,
+    "",
+    "Tickets:",
+    ...lines,
+    "",
+    input.isFree ? "Admission: Free" : `Total paid: ${formatEuros(input.totalCents)}`,
+    "",
+    "Your tickets are attached to this email as PDF files — each carries a",
+    "unique QR code that is scanned at the entrance. Please bring them printed",
+    "or on your phone.",
+    ...(event.notice ? ["", event.notice] : []),
+    "",
+    `Questions? Reply to this email or contact ${contact}.`,
+    `commontone · ${SITE.instagramHandle} · ${SITE.domain}`,
+  ].join("\n");
 }
 
 /**
@@ -141,11 +186,16 @@ export async function sendConfirmationEmail(
     return null;
   }
 
+  const contact = input.event.contactEmail || SITE.contactEmail;
+
   const { data, error } = await resend.emails.send({
     from: FROM,
     to: input.to,
-    subject: `Your Tickets – ${input.event.name}`,
+    // A real reply-to address improves both deliverability and support.
+    replyTo: contact,
+    subject: `Your tickets for ${input.event.name} (${input.orderNumber})`,
     html: buildHtml(input),
+    text: buildText(input),
     attachments: attachments.map((a) => ({
       filename: a.filename,
       content: a.content,

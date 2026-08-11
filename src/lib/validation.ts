@@ -80,10 +80,28 @@ export async function validateTicket(
   }
 
   if (checkIn) {
-    await prisma.ticket.update({
-      where: { id: ticket.id },
+    // Claim the ticket atomically. The `checkedIn: false` guard means the
+    // database — not this process — decides the winner, so the same QR
+    // scanned at two doors at once can only ever admit one person.
+    // A read-then-write here would let every concurrent scan see
+    // checkedIn=false and all report VALID.
+    const claimed = await prisma.ticket.updateMany({
+      where: { id: ticket.id, checkedIn: false },
       data: { checkedIn: true, checkedInAt: new Date() },
     });
+
+    if (claimed.count === 0) {
+      // Someone else checked this ticket in between our read and write.
+      const fresh = await prisma.ticket.findUnique({
+        where: { id: ticket.id },
+        select: { checkedInAt: true },
+      });
+      return {
+        status: "ALREADY_USED",
+        ...base,
+        checkedInAt: fresh?.checkedInAt?.toISOString() ?? "",
+      };
+    }
   }
 
   return { status: "VALID", ...base };

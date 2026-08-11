@@ -59,6 +59,7 @@ export default async function EditEventPage({
     venueCountry: e.venueCountry,
     ticketUrl: e.ticketUrl ?? "",
     imageUrl: e.imageUrl ?? "",
+    posterUrl: e.posterUrl ?? "",
     isFree: e.isFree,
     priceEuros: (e.priceCents / 100).toString(),
     capacity: e.capacity ? e.capacity.toString() : "",
