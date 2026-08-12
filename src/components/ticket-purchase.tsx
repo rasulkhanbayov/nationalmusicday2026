@@ -100,29 +100,27 @@ export function TicketPurchase({ event }: { event: EventView }) {
   return (
     <form onSubmit={submit} className="mx-auto max-w-3xl">
       {/* Ticket types */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-stretch gap-4 sm:grid-cols-2">
         {tiers.map((tier) => {
           const n = qty[tier.name] ?? 0;
           const active = n > 0;
           return (
             <Card
               key={tier.name}
-              className={`relative overflow-hidden transition-all ${
+              className={`relative flex h-full flex-col overflow-hidden transition-all ${
                 active ? "border-gold shadow-md" : "hover:border-gold/40"
               }`}
             >
-              <CardContent className="pt-6">
+              <CardContent className="flex flex-1 flex-col pt-6">
                 <h3 className="font-serif text-xl font-semibold text-navy-900">
                   {content(tier.name, tier.nameEn)}
                 </h3>
                 <p className="mt-3 font-serif text-3xl font-bold text-navy-900">
                   {price(tier.priceCents)}
                 </p>
-                {tier.note ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {content(tier.note, tier.noteEn)}
-                  </p>
-                ) : null}
+                <p className="mt-1 flex-1 text-sm text-muted-foreground">
+                  {tier.note ? content(tier.note, tier.noteEn) : null}
+                </p>
 
                 <div className="mt-5 flex items-center justify-between rounded-lg border border-border p-1.5">
                   <button
