@@ -8,18 +8,31 @@ import { parseItems } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/admin/resend  { orderId }
+// POST /api/admin/resend  { orderId, email? }
 // Re-sends the confirmation email (with PDF tickets) for a paid order.
+//
+// `email` optionally corrects a mistyped address: it is saved on the order and
+// used for this and all future sends. Ticket ids are never regenerated, so any
+// QR already in circulation stays valid.
 export async function POST(req: NextRequest) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let orderId: string;
+  let email: string | undefined;
   try {
-    ({ orderId } = await req.json());
+    ({ orderId, email } = await req.json());
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const corrected = typeof email === "string" ? email.trim() : "";
+  if (corrected && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(corrected)) {
+    return NextResponse.json(
+      { error: "That does not look like a valid email address." },
+      { status: 400 },
+    );
   }
 
   const order = await prisma.order.findUnique({
@@ -36,9 +49,22 @@ export async function POST(req: NextRequest) {
 
   const purchaserName = `${order.firstName} ${order.lastName}`.trim();
 
+  // Persist the correction first, so a later resend (or any support lookup)
+  // uses the fixed address even if this send fails.
+  const to = corrected || order.email;
+  if (corrected && corrected !== order.email) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { email: corrected },
+    });
+    console.info(
+      `[resend] ${order.orderNumber}: email corrected ${order.email} -> ${corrected}`,
+    );
+  }
+
   try {
     await sendConfirmationEmail({
-      to: order.email,
+      to,
       purchaserName,
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
@@ -62,5 +88,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, sentTo: to });
 }

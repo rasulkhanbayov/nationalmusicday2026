@@ -200,7 +200,7 @@ export default async function DashboardPage({
                             </Badge>
                           </td>
                           <td className="py-3 text-right">
-                            <ResendButton orderId={o.id} />
+                            <ResendButton orderId={o.id} email={o.email} />
                           </td>
                         </tr>
                       );
