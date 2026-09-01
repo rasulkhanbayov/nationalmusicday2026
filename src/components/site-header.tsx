@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/constants";
@@ -40,6 +40,16 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <a
+            href={SITE.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${SITE.name} on Instagram`}
+            title={SITE.instagramHandle}
+            className="text-white/80 transition-colors hover:text-gold"
+          >
+            <Instagram className="h-5 w-5" />
+          </a>
           <LanguageSwitcher />
           <Button asChild variant="gold" size="sm">
             <Link href="/events">{t.nav.browseEvents}</Link>
@@ -76,6 +86,16 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <a
+            href={SITE.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-white/80 hover:bg-white/5 hover:text-gold"
+          >
+            <Instagram className="h-4 w-4" />
+            {SITE.instagramHandle}
+          </a>
           <Button asChild variant="gold" size="sm" className="mt-2">
             <Link href="/events" onClick={() => setOpen(false)}>
               {t.nav.browseEvents}
