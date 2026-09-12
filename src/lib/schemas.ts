@@ -16,6 +16,8 @@ export const checkoutSchema = z.object({
       }),
     )
     .min(1, "Select at least one ticket"),
+  // Optional private-invite token from ?k= on the invite page.
+  inviteToken: z.string().trim().max(200).optional(),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;

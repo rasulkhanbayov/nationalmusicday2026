@@ -100,6 +100,7 @@ model Event {
   seats   Seat[]
   orders  Order[]
   tickets Ticket[]
+  invites Invite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,4 +232,36 @@ model AppConfig {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// ──────────────────────────────────────────────
+// Invite — a private purchase link that bypasses the sold-out cap.
+//
+// Used when extra seats appear after an event sells out: the guest buys
+// through the normal checkout (Stripe, QR ticket, email) via a secret URL,
+// while the public page keeps showing SOLD OUT.
+// ──────────────────────────────────────────────
+model Invite {
+  id      String @id @default(cuid())
+  // Unguessable URL token (?k=…). Long random string, not sequential.
+  token   String @unique
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // How many tickets this link may sell in total, and how many it has sold.
+  maxTickets  Int @default(1)
+  usedTickets Int @default(0)
+
+  // Hard stop regardless of usage.
+  expiresAt DateTime
+  // Set when an admin kills the link early.
+  revokedAt DateTime?
+
+  // Free-text reminder of who it was for.
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
 }

@@ -7,6 +7,7 @@ import { siteUrl, MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { EventStatus } from "@prisma/client";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { checkInvite, consumeInvite, releaseInvite } from "@/lib/invites";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,32 @@ export async function POST(req: NextRequest) {
       { status: 409 },
     );
   }
-  if (event.status === EventStatus.SOLD_OUT) {
+  // A private invite link lets one guest buy past a sold-out event. Validate
+  // it up front: an invalid token must fall through to the normal sold-out
+  // rules rather than granting access.
+  const inviteState = parsed.inviteToken
+    ? await checkInvite(parsed.inviteToken, event.id)
+    : null;
+  const hasInvite = inviteState?.ok === true;
+
+  if (parsed.inviteToken && !hasInvite) {
+    const reason = inviteState && !inviteState.ok ? inviteState.reason : "not_found";
+    return NextResponse.json(
+      {
+        error:
+          reason === "used"
+            ? "This invitation has already been used."
+            : reason === "expired"
+              ? "This invitation has expired."
+              : reason === "revoked"
+                ? "This invitation is no longer valid."
+                : "This invitation link is not valid.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (event.status === EventStatus.SOLD_OUT && !hasInvite) {
     return NextResponse.json(
       { error: "This event is sold out." },
       { status: 409 },
@@ -90,25 +116,52 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Capacity guard. Tickets already issued + this request must fit. Stripe
-  // sessions expire, so we count issued tickets rather than pending orders —
-  // an abandoned checkout never blocks a seat.
-  const remaining = await ticketsRemaining(event.id, event.capacity);
-  if (remaining !== null && quantity > remaining) {
-    return NextResponse.json(
-      {
-        error:
-          remaining === 0
-            ? "This event is sold out."
-            : `Only ${remaining} ticket${remaining === 1 ? "" : "s"} left.`,
-        remaining,
-      },
-      { status: 409 },
-    );
+  if (hasInvite) {
+    // The invite's own allowance replaces the event capacity — the organiser
+    // has explicitly added these seats.
+    const allowed = inviteState!.ok ? inviteState!.invite.remaining : 0;
+    if (quantity > allowed) {
+      return NextResponse.json(
+        {
+          error: `This invitation is valid for ${allowed} ticket${allowed === 1 ? "" : "s"}.`,
+          remaining: allowed,
+        },
+        { status: 409 },
+      );
+    }
+  } else {
+    // Capacity guard. Tickets already issued + this request must fit. Stripe
+    // sessions expire, so we count issued tickets rather than pending orders —
+    // an abandoned checkout never blocks a seat.
+    const remaining = await ticketsRemaining(event.id, event.capacity);
+    if (remaining !== null && quantity > remaining) {
+      return NextResponse.json(
+        {
+          error:
+            remaining === 0
+              ? "This event is sold out."
+              : `Only ${remaining} ticket${remaining === 1 ? "" : "s"} left.`,
+          remaining,
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const totalCents = items.reduce((sum, i) => sum + i.priceCents * i.quantity, 0);
   const base = siteUrl();
+
+  // Claim the invite now so a second person opening the same link cannot
+  // also reach Stripe. Released again below if the session can't be created.
+  if (hasInvite) {
+    const claimed = await consumeInvite(inviteState!.ok ? inviteState!.invite.id : "", quantity);
+    if (!claimed) {
+      return NextResponse.json(
+        { error: "This invitation has already been used." },
+        { status: 409 },
+      );
+    }
+  }
 
   const order = await createPendingOrder({
     eventId: event.id,
@@ -165,6 +218,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[checkout] Stripe session error:", err);
     await cancelOrder(order.id).catch(() => {});
+    if (hasInvite && inviteState!.ok) {
+      await releaseInvite(inviteState!.invite.id, quantity);
+    }
     return NextResponse.json(
       { error: "Payment could not be started. Please try again." },
       { status: 500 },

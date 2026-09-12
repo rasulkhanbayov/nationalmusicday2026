@@ -16,7 +16,14 @@ import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
  * guest details, then hand off to Stripe Checkout. No seat selection — QR
  * tickets are emailed once payment is confirmed.
  */
-export function TicketPurchase({ event }: { event: EventView }) {
+export function TicketPurchase({
+  event,
+  inviteToken,
+}: {
+  event: EventView;
+  /** Private-invite token, when reached through an invitation link. */
+  inviteToken?: string;
+}) {
   const { t, price, content } = useLanguage();
   const { toast } = useToast();
 
@@ -77,6 +84,7 @@ export function TicketPurchase({ event }: { event: EventView }) {
           eventId: event.id,
           ...form,
           items: tiers.map((x) => ({ tier: x.name, quantity: qty[x.name] ?? 0 })),
+          ...(inviteToken ? { inviteToken } : {}),
         }),
       });
       const json = await res.json();
