@@ -4,13 +4,20 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, ScanLine, LogOut, CalendarCog } from "lucide-react";
+import {
+  LayoutDashboard,
+  ScanLine,
+  LogOut,
+  CalendarCog,
+  Mail,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/events", label: "Events", icon: CalendarCog },
+  { href: "/admin/email", label: "Email", icon: Mail },
   { href: "/admin/scan", label: "Scan Tickets", icon: ScanLine },
 ];
 

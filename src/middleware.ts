@@ -7,6 +7,7 @@ export const config = {
   matcher: [
     "/admin/dashboard/:path*",
     "/admin/events/:path*",
+    "/admin/email/:path*",
     "/admin/scan/:path*",
   ],
 };
