@@ -36,11 +36,15 @@ export function BroadcastComposer({
   const [sample, setSample] = useState<string[]>([]);
   const [confirm, setConfirm] = useState("");
   const [testSent, setTestSent] = useState(false);
-  const [done, setDone] = useState<{ sent: number; failed: number } | null>(
-    null,
-  );
+  const [done, setDone] = useState<{
+    sent: number;
+    failed: { email: string; error: string }[];
+  } | null>(null);
 
-  async function call(mode: "preview" | "test" | "send") {
+  async function call(
+    mode: "preview" | "test" | "send",
+    onlyEmails?: string[],
+  ) {
     setBusy(mode);
     try {
       const res = await fetch("/api/admin/broadcast", {
@@ -52,7 +56,10 @@ export function BroadcastComposer({
           message,
           personalise,
           mode,
-          ...(mode === "send" ? { confirmCount: count } : {}),
+          ...(mode === "send"
+            ? { confirmCount: onlyEmails ? onlyEmails.length : count }
+            : {}),
+          ...(onlyEmails ? { onlyEmails } : {}),
         }),
       });
       const json = await res.json();
@@ -70,7 +77,7 @@ export function BroadcastComposer({
           description: `Check ${json.sentTo}`,
         });
       } else {
-        setDone({ sent: json.sent, failed: json.failed?.length ?? 0 });
+        setDone({ sent: json.sent, failed: json.failed ?? [] });
         setConfirm("");
         toast({
           variant: "success",
@@ -280,16 +287,55 @@ export function BroadcastComposer({
               </Button>
 
               {done ? (
-                <p className="text-sm text-navy-800">
-                  Sent {done.sent}.{" "}
-                  {done.failed > 0 ? (
-                    <span className="text-destructive">
-                      {done.failed} failed - check the server log.
-                    </span>
-                  ) : (
-                    "No failures."
-                  )}
-                </p>
+                <div className="space-y-3 border-t border-border pt-4 text-sm">
+                  <p className="font-medium text-navy-900">
+                    Sent {done.sent}.{" "}
+                    {done.failed.length === 0 ? (
+                      "No failures."
+                    ) : (
+                      <span className="text-destructive">
+                        {done.failed.length} failed.
+                      </span>
+                    )}
+                  </p>
+
+                  {done.failed.length > 0 ? (
+                    <>
+                      {/* Listing the addresses matters: without them there is
+                          no way to retry without emailing everyone twice. */}
+                      <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-secondary p-3">
+                        {done.failed.map((f) => (
+                          <p key={f.email} className="text-xs text-navy-800">
+                            <span className="font-mono">{f.email}</span>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              — {f.error}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={busy !== null}
+                        onClick={() =>
+                          void call(
+                            "send",
+                            done.failed.map((f) => f.email),
+                          )
+                        }
+                      >
+                        {busy === "send" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Retry {done.failed.length} failed only
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
               ) : null}
             </CardContent>
           </Card>

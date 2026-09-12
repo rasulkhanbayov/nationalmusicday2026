@@ -131,14 +131,28 @@ export function buildBroadcastText(input: {
     .join("\n");
 }
 
-export type SendResult = { sent: number; failed: { email: string; error: string }[] };
+export type SendResult = {
+  sent: number;
+  failed: { email: string; error: string }[];
+};
+
+/** Splits a list into chunks of at most `size`. */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 /**
- * Sends the announcement to each recipient individually.
+ * Sends the announcement to every recipient.
  *
- * One message per person rather than a single BCC blast: recipients never see
- * each other's addresses, and the greeting can use their first name. Sent in
- * small batches with a pause, to stay inside Resend's rate limit.
+ * Uses Resend's batch endpoint: up to 100 personalised messages per API call,
+ * so a 100-person send costs one request instead of 100. That matters because
+ * Resend allows ~10 requests/second per team — sending one-by-one trips the
+ * limit and silently drops recipients.
+ *
+ * Still one message per person (not a BCC blast), so recipients never see each
+ * other's addresses and each greeting can use their first name.
  */
 export async function sendBroadcast(params: {
   recipients: { email: string; firstName: string }[];
@@ -156,13 +170,42 @@ export async function sendBroadcast(params: {
   const failed: { email: string; error: string }[] = [];
   let sent = 0;
 
-  const BATCH = 8;
-  for (let i = 0; i < recipients.length; i += BATCH) {
-    const slice = recipients.slice(i, i + BATCH);
-    await Promise.all(
-      slice.map(async (r) => {
+  // 100 is the batch endpoint's documented maximum per call.
+  const groups = chunk(recipients, 100);
+
+  for (let g = 0; g < groups.length; g++) {
+    const group = groups[g]!;
+    const payload = group.map((r) => ({
+      from: FROM,
+      to: r.email,
+      replyTo: SITE.contactEmail,
+      subject,
+      html: buildBroadcastHtml({
+        eventName,
+        body,
+        greetingName: personalise ? r.firstName : undefined,
+      }),
+      text: buildBroadcastText({
+        eventName,
+        body,
+        greetingName: personalise ? r.firstName : undefined,
+      }),
+    }));
+
+    try {
+      const { error } = await resend.batch.send(payload);
+      if (error) throw new Error(error.message);
+      sent += group.length;
+    } catch (err) {
+      // A whole batch failing is rare (auth, quota, malformed payload). Retry
+      // this group one message at a time so one bad address cannot cost the
+      // other 99 their email, and so the failure list names real recipients.
+      const message = err instanceof Error ? err.message : "unknown error";
+      console.error(`[broadcast] batch ${g + 1} failed (${message}) — retrying individually`);
+
+      for (const r of group) {
         try {
-          const { error } = await resend!.emails.send({
+          const { error } = await resend.emails.send({
             from: FROM,
             to: r.email,
             replyTo: SITE.contactEmail,
@@ -180,17 +223,20 @@ export async function sendBroadcast(params: {
           });
           if (error) throw new Error(error.message);
           sent += 1;
-        } catch (err) {
+        } catch (e) {
           failed.push({
             email: r.email,
-            error: err instanceof Error ? err.message : "unknown error",
+            error: e instanceof Error ? e.message : "unknown error",
           });
         }
-      }),
-    );
-    // Brief pause between batches so a large send doesn't trip rate limits.
-    if (i + BATCH < recipients.length) {
-      await new Promise((res) => setTimeout(res, 600));
+        // ~5 requests/second, comfortably inside Resend's ~10/s limit.
+        await new Promise((res) => setTimeout(res, 200));
+      }
+    }
+
+    // Space out batch calls too, in case several groups are sent back to back.
+    if (g + 1 < groups.length) {
+      await new Promise((res) => setTimeout(res, 1000));
     }
   }
 

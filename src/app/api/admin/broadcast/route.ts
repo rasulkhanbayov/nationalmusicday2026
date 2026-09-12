@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     mode?: "preview" | "test" | "send";
     personalise?: boolean;
     confirmCount?: number;
+    /** Retry mode: send only to these addresses, skipping everyone else. */
+    onlyEmails?: string[];
   };
   try {
     body = await req.json();
@@ -70,7 +72,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const recipients = await getRecipients(event.id);
+  const all = await getRecipients(event.id);
+
+  // Retry mode: narrow to the given addresses. Still resolved against the real
+  // recipient list, so this cannot be used to mail an arbitrary address.
+  const only = Array.isArray(body.onlyEmails)
+    ? new Set(body.onlyEmails.map((e) => String(e).trim().toLowerCase()))
+    : null;
+  const recipients = only
+    ? all.filter((r) => only.has(r.email.toLowerCase()))
+    : all;
 
   // ── preview ──────────────────────────────────────────────
   if (mode === "preview") {
